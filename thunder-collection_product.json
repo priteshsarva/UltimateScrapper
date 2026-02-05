@@ -1,0 +1,74 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "product",
+    "collectionId": "97a7a6b5-1f7a-40d6-afd2-81d9894e9957",
+    "dateExported": "2025-01-21T15:20:59.738Z",
+    "version": "1.2",
+    "folders": [],
+    "requests": [
+        {
+            "_id": "855d3656-838b-4187-9e37-539f795de64a",
+            "colId": "97a7a6b5-1f7a-40d6-afd2-81d9894e9957",
+            "containerId": "",
+            "name": "http://localhost:5000/product/allresults",
+            "url": "http://localhost:5000/product/allresults",
+            "method": "GET",
+            "sortNum": 10000,
+            "created": "2025-01-15T16:33:08.508Z",
+            "modified": "2025-01-15T16:34:05.388Z",
+            "headers": []
+        },
+        {
+            "_id": "a21dfde7-8ef2-4acc-a92b-8309c34a08c4",
+            "colId": "97a7a6b5-1f7a-40d6-afd2-81d9894e9957",
+            "containerId": "",
+            "name": "http://localhost:5000/product/add",
+            "url": "http://localhost:5000/product/add",
+            "method": "POST",
+            "sortNum": 20000,
+            "created": "2025-01-15T16:33:08.509Z",
+            "modified": "2025-01-15T17:05:04.292Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \n  \n   \"productName\" : \"NOT NULL\",\n    \"productLastUpdated\": \"DATETIME DEFAULT CURRENT_TIMESTAMP\",\n    \"productPrice\":8885,\n    \"productPriceWithoutDiscount\" :54548,\n    \"productOriginalPrice\": 57487,\n    \"productFetchedFrom\": \"test\",\n    \"ProductUrl\": \"TEXT\",\n    \"productShortDescription\": \"TEXT\",\n    \"productDescription\": \"TEXT\",\n    \"productBrand\": \"TEXT\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "aaf7400c-011e-44b4-9041-e2cff4129dda",
+            "colId": "97a7a6b5-1f7a-40d6-afd2-81d9894e9957",
+            "containerId": "",
+            "name": "http://localhost:5000/category/update",
+            "url": "http://localhost:5000/product/update",
+            "method": "POST",
+            "sortNum": 30000,
+            "created": "2025-01-15T16:33:08.510Z",
+            "modified": "2025-01-19T10:04:35.699Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"productId\":2,\n  \"productName\":\"slippersdsd234\",\n  \"productBrand\":\"tchdytdsikd\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "edb19b7a-b467-4682-9e7e-a1bc5307b6bf",
+            "colId": "97a7a6b5-1f7a-40d6-afd2-81d9894e9957",
+            "containerId": "",
+            "name": "http://localhost:5000/category/add Copy Copy",
+            "url": "http://localhost:5000/product/delete",
+            "method": "DELETE",
+            "sortNum": 40000,
+            "created": "2025-01-15T16:33:08.511Z",
+            "modified": "2025-01-15T17:17:02.644Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"productId\":1\n}",
+                "form": []
+            }
+        }
+    ],
+    "ref": "MoICMC2hIBr_kzFnhoU8XbFIMZaPIbMMTU7o0buqdi6JvUqdw7Udtpct6x7dGTl0NnuRfxmiXS_or5qOb7rPaA"
+}

@@ -1,0 +1,74 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "Size",
+    "collectionId": "24cbaadb-7085-4f91-b20c-c002d5835e65",
+    "dateExported": "2025-01-21T15:21:07.523Z",
+    "version": "1.2",
+    "folders": [],
+    "requests": [
+        {
+            "_id": "616fd5be-479b-4b4d-bfb2-a448dfa10e2c",
+            "colId": "24cbaadb-7085-4f91-b20c-c002d5835e65",
+            "containerId": "",
+            "name": "http://localhost:5000/size/allresults",
+            "url": "http://localhost:5000/tag/allresults",
+            "method": "GET",
+            "sortNum": 10000,
+            "created": "2025-01-19T10:08:33.090Z",
+            "modified": "2025-01-19T10:25:18.947Z",
+            "headers": []
+        },
+        {
+            "_id": "cf3da039-ca98-47ac-9e70-427290afdbba",
+            "colId": "24cbaadb-7085-4f91-b20c-c002d5835e65",
+            "containerId": "",
+            "name": "http://localhost:5000/size/add",
+            "url": "http://localhost:5000/size/add",
+            "method": "POST",
+            "sortNum": 20000,
+            "created": "2025-01-19T10:08:33.092Z",
+            "modified": "2025-01-19T15:09:57.215Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"sizeName\": \"B\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "30fa59f2-b6c9-448f-9a23-6f94caf1b79d",
+            "colId": "24cbaadb-7085-4f91-b20c-c002d5835e65",
+            "containerId": "",
+            "name": "http://localhost:5000/size/update",
+            "url": "http://localhost:5000/size/update",
+            "method": "POST",
+            "sortNum": 30000,
+            "created": "2025-01-19T10:08:33.093Z",
+            "modified": "2025-01-19T10:17:08.412Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"sizeId\": 1,\n  \"sizeName\": \"G\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "a20fa79a-8958-4f83-bd86-a923cb2a57c7",
+            "colId": "24cbaadb-7085-4f91-b20c-c002d5835e65",
+            "containerId": "",
+            "name": "http://localhost:5000/size/add",
+            "url": "http://localhost:5000/size/delete",
+            "method": "DELETE",
+            "sortNum": 40000,
+            "created": "2025-01-19T10:08:33.094Z",
+            "modified": "2025-01-19T10:19:35.453Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n    \"sizeId\": 1\n}",
+                "form": []
+            }
+        }
+    ],
+    "ref": "lpMVVLZ7Tt2gr5jNVjEaisxmKh-cVZwwBFv3abE_-cPQ_DyX301rjA8R8DjivaxGeRMwlwzS0OQRopQeseoWTQ"
+}
