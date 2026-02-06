@@ -18,6 +18,7 @@ import { baseUrls } from "./config/baseUrls.js";
 import fs from 'fs';
 import cors from 'cors';
 import { fixBrandsFromMap } from "./services/wpBulkSafeSync.js";
+import productRoutes from './routes/productRoutes.js'
 // const PORT = process.env.PORT || 5000;
 const PORT = 80; // Force port 80 for production behind Cloudflare
 
@@ -82,6 +83,7 @@ app.use('/productsize', productSizes)
 app.use('/productcategories', productCategories)
 app.use('/brand', brand)
 app.use('/productbrand', productBrand)
+app.use('/api', productRoutes);
 
 app.get('/updateserver', async (req, res) => {
     console.log("working");

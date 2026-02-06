@@ -13,6 +13,9 @@ class DbManager {
     }
 
     async getDb(category) {
+
+
+
         if (!category) throw new Error("Category name is required.");
         const cat = category.toLowerCase();
 
@@ -24,6 +27,8 @@ class DbManager {
             const db = new sqlite3.Database(dbPath, async (err) => {
                 if (err) return reject(err);
 
+                db.run("PRAGMA journal_mode = WAL"); // Write-Ahead Logging (Allows parallel read/write)
+                db.run("PRAGMA busy_timeout = 5000"); // Wait up to 5 seconds if DB is busy
                 try {
                     // Enable Foreign Keys
                     db.run("PRAGMA foreign_keys = ON");
@@ -68,7 +73,7 @@ class DbManager {
                 productPrice REAL,
                 productPriceWithoutDiscount REAL,
                 productOriginalPrice REAL NOT NULL,
-                productFetchedFrom INTEGER,
+                productFetchedFrom TEXT,     -- Restored to TEXT
                 productUrl TEXT,
                 featuredimg TEXT,
                 imageUrl TEXT,
@@ -78,8 +83,7 @@ class DbManager {
                 productBrand TEXT,
                 sizeName TEXT,
                 catName TEXT,               
-                availability BOOLEAN DEFAULT 1,
-                FOREIGN KEY (productFetchedFrom) REFERENCES VENDORS(vendorId) ON DELETE SET NULL
+                availability BOOLEAN DEFAULT 1
             );
 
             CREATE TABLE IF NOT EXISTS ProductSizes (ProductId INTEGER, SizeId INTEGER, PRIMARY KEY (ProductId, SizeId), FOREIGN KEY (ProductId) REFERENCES PRODUCTS(productId) ON DELETE CASCADE, FOREIGN KEY (SizeId) REFERENCES SIZES(sizeId) ON DELETE CASCADE);

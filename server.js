@@ -1,55 +1,94 @@
-// server.js
 import express from 'express';
+import cors from 'cors';
 import { dbManager } from './models/dbManager.js';
-import fs from 'fs';
-import path from 'path';
+import { SITES_REGISTRY } from './config/sites.js';
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+
 const PORT = 3000;
 
-// Helper to promisify db.all
-const getAll = (db, sql) => new Promise((res, rej) => {
-    db.all(sql, [], (err, rows) => err ? rej(err) : res(rows));
+// HELPER: Promisify SQLite all()
+const queryAll = (db, sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+    });
+};
+
+/**
+ * 4.1 GET /api/sites
+ * Returns the registry of all websites we scrape.
+ */
+app.get('/api/sites', (req, res) => {
+    res.json(SITES_REGISTRY);
 });
 
-// ROUTE 1: Get all products from a SPECIFIC database
-// Example: http://localhost:3000/api/shoes/products
+/**
+ * 4.2 GET /api/:category/products
+ * Multi-site filter logic.
+ * Example: /api/watches/products?sites=zeewatches,watchhouse11
+ */
 app.get('/api/:category/products', async (req, res) => {
     try {
         const { category } = req.params;
+        const { sites } = req.query; 
+        
         const db = await dbManager.getDb(category);
-        const products = await getAll(db, "SELECT * FROM PRODUCTS");
-        res.json({ category, count: products.length, products });
+        
+        let sql = "SELECT * FROM PRODUCTS";
+        let params = [];
+
+        if (sites) {
+            const siteIds = sites.split(',');
+            // Map IDs from URL to searchKeys from Registry
+            const searchKeys = SITES_REGISTRY
+                .filter(s => siteIds.includes(s.id))
+                .map(s => `%${s.searchKey}%`);
+
+            if (searchKeys.length > 0) {
+                const whereClause = searchKeys.map(() => "productFetchedFrom LIKE ?").join(" OR ");
+                sql += ` WHERE ${whereClause}`;
+                params = searchKeys;
+            }
+        }
+
+        const rows = await queryAll(db, sql, params);
+        res.json({
+            category,
+            count: rows.length,
+            products: rows
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ROUTE 2: Get all products from ALL databases
-// Example: http://localhost:3000/api/all-products
-app.get('/api/all-products', async (req, res) => {
+/**
+ * 4.3 GET /api/stats
+ * Provides a summary of all databases currently in the folder.
+ */
+app.get('/api/stats', async (req, res) => {
     try {
-        const dbFiles = fs.readdirSync('./databases').filter(file => file.endsWith('.db'));
-        let allResults = [];
+        // Get unique categories from the registry
+        const categories = [...new Set(SITES_REGISTRY.map(s => s.category))];
+        const stats = [];
 
-        for (const file of dbFiles) {
-            const category = file.replace('.db', '');
-            const db = await dbManager.getDb(category);
-            const products = await getAll(db, "SELECT * FROM PRODUCTS");
-            
-            // Tag each product with its source DB for clarity
-            const taggedProducts = products.map(p => ({ ...p, database: category }));
-            allResults = allResults.concat(taggedProducts);
+        for (const cat of categories) {
+            const db = await dbManager.getDb(cat);
+            const countRow = await queryAll(db, "SELECT COUNT(*) as total FROM PRODUCTS");
+            stats.push({
+                category: cat,
+                totalProducts: countRow[0].total
+            });
         }
 
-        res.json({ totalCount: allResults.length, allResults });
+        res.json(stats);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Test API running at http://localhost:${PORT}`);
-    console.log(`Try: http://localhost:3000/api/shoes/products`);
-    console.log(`Try: http://localhost:3000/api/all-products`);
+    console.log(`✅ Phase 4 API Online at http://localhost:${PORT}`);
 });
