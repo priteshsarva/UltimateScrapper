@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as cheerio from 'cheerio';
-import { DB } from '../models/connect.js';
+// import { DB } from '../models/connect.js';
 import fs from 'fs';
 import path, { resolve } from 'path';
 import { promisify } from 'util';
@@ -9,10 +9,10 @@ import { fileURLToPath } from 'url';
 import { rejects } from 'assert';
 import "dotenv/config";
 import { exec } from 'child_process';
-import { humanizePage, humanType } from './humanize.js';
+import { humanizePage, humanType } from '../humanize.js';
 import { log } from 'console';
-import { upsertProductSafe } from '../services/wpBulkSafeSync.js'
-import { updateProductCategory } from '../services/updateProductCategoryAndBrand.js';
+// import { upsertProductSafe } from '../services/wpBulkSafeSync.js'
+// import { updateProductCategory } from '../services/updateProductCategoryAndBrand.js';
 
 // const baseUrls = ['https://oneshoess.cartpe.in', 'https://reseller-store.cartpe.in'];
 // const baseUrls = ['https://oneshoess.cartpe.in'];
@@ -21,9 +21,9 @@ import { updateProductCategory } from '../services/updateProductCategoryAndBrand
 // Use the stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
 
-// Promisify DB methods for easier async/await usage
-DB.run = promisify(DB.run);
-DB.get = promisify(DB.get);
+// // Promisify DB methods for easier async/await usage
+// DB.run = promisify(DB.run);
+// DB.get = promisify(DB.get);
 
 // Utility function to introduce delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));

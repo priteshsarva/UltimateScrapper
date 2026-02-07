@@ -2,7 +2,9 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { dbManager } from '../models/dbManager.js';
 import { SITES_REGISTRY } from '../config/sites.js';
-import { fetchDataa } from "./newtemp.js";
+import { fetchDataa } from "./strategies/methodA.js";
+import { promisify } from 'util';
+
 
 puppeteer.use(StealthPlugin());
 
@@ -12,6 +14,9 @@ export async function executeScraper(siteId) {
 
     // 1. Get the correct Database (Shoes vs Watches)
     const db = await dbManager.getDb(config.category);
+    // Promisify DB methods for easier async/await usage
+    db.run = promisify(db.run);
+    db.get = promisify(db.get);
 
     // 2. Launch Browser
     // const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
