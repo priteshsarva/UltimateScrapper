@@ -103,7 +103,7 @@ function gitAutoCommitAndPush() {
 }
 
 // Main function to fetch data
-async function fetchDataa(baseUrls,DB) {
+async function fetchDataa(baseUrls, DB) {
     console.log(Date.now());
     gitAutoCommitAndPush();
 
@@ -143,36 +143,36 @@ async function fetchDataa(baseUrls,DB) {
 
     const allproducts = [];
 
-    
-        const url = baseUrls;
-        const fullUrl = `${url}/allcategory.html`;
-        let productss = []; // Initialize productss for each URL
 
-        try {
-            // Scrape categories from the current URL 
-            const categories = await scrapeCategories(page, fullUrl);
-            // Scrape products for each category
-            productss = await scrapeProducts(page, categories, url); // Pass the base URL here
-        } catch (error) {
-            // console.error(`Error fetching data from ${url}:`, error);
-        } finally {
-            // Add scraped products to the final array
-            allproducts.push(...productss); // Use spread operator to flatten the array
-        }
+    const url = baseUrls;
+    const fullUrl = `${url}/allcategory.html`;
+    let productss = []; // Initialize productss for each URL
 
-        // 🔁 Rotate: first to last
-        baseUrls.push(baseUrls.shift());
+    try {
+        // Scrape categories from the current URL 
+        const categories = await scrapeCategories(page, fullUrl, DB);
+        // Scrape products for each category
+        productss = await scrapeProducts(page, categories, url); // Pass the base URL here
+    } catch (error) {
+        // console.error(`Error fetching data from ${url}:`, error);
+    } finally {
+        // Add scraped products to the final array
+        allproducts.push(...productss); // Use spread operator to flatten the array
+    }
 
-        // 💾 Save updated rotation to baseUrls.js (live)
-        const newFileContent = `const baseUrls = ${JSON.stringify(baseUrls, null, 3)};\n\nexport { baseUrls };`;
-        try {
-            fs.writeFileSync(baseUrlsPath, newFileContent, "utf-8");
-            console.log("File written successfully!");
-        } catch (err) {
-            console.error("Failed to write baseUrls.js:", err);
-        }
+    // 🔁 Rotate: first to last
+    baseUrls.push(baseUrls.shift());
 
-        console.log(`✅ Rotated & saved baseUrls.js — next start will begin from: ${baseUrls[0]}`);
+    // 💾 Save updated rotation to baseUrls.js (live)
+    const newFileContent = `const baseUrls = ${JSON.stringify(baseUrls, null, 3)};\n\nexport { baseUrls };`;
+    try {
+        fs.writeFileSync(baseUrlsPath, newFileContent, "utf-8");
+        console.log("File written successfully!");
+    } catch (err) {
+        console.error("Failed to write baseUrls.js:", err);
+    }
+
+    console.log(`✅ Rotated & saved baseUrls.js — next start will begin from: ${baseUrls[0]}`);
 
 
 
