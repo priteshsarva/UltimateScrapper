@@ -13,10 +13,10 @@ export async function executeScraper(siteId) {
     if (!config) throw new Error("Site ID not found");
 
     // 1. Get the correct Database (Shoes vs Watches)
-    const db = await dbManager.getDb(config.category);
+    const DB = await dbManager.getDb(config.category);
     // Promisify DB methods for easier async/await usage
-    db.run = promisify(db.run);
-    db.get = promisify(db.get);
+    DB.run = promisify(DB.run);
+    DB.get = promisify(DB.get);
 
     // 2. Launch Browser
     // const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
@@ -29,7 +29,7 @@ export async function executeScraper(siteId) {
             console.log("METHOD_A");
             console.log(config.base_url);
 
-            await fetchDataa(config.base_url);
+            await fetchDataa(config.base_url,DB);
         }
         else if (config.method === "METHOD_B") {
             console.log(siteId);
