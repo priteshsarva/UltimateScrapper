@@ -161,7 +161,7 @@ async function fetchDataa(baseUrls, DB) {
     }
 
     // 🔁 Rotate: first to last
-    baseUrls.push(baseUrls.shift());
+    // baseUrls.push(baseUrls.shift());
 
     // 💾 Save updated rotation to baseUrls.js (live)
     const newFileContent = `const baseUrls = ${JSON.stringify(baseUrls, null, 3)};\n\nexport { baseUrls };`;
