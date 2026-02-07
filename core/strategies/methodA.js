@@ -190,7 +190,7 @@ async function fetchDataa(baseUrls, DB) {
 }
 
 // Function to scrape categories
-async function scrapeCategories(page, fullUrl, retries = 3) {
+async function scrapeCategories(page, fullUrl, retries = 3, DB) {
     for (let i = 0; i < retries; i++) {
         try {
             // Navigate to the category page
