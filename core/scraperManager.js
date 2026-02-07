@@ -1,51 +1,40 @@
-import { SITES_REGISTRY } from '../config/sitesConfig.js';
-import { dbManager } from '../../models/dbManager.js';
-import { runMethodA } from './strategies/methodA.js';
-import { runMethodB } from './strategies/methodB.js';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { dbManager } from '../models/dbManager.js';
+import { SITES_REGISTRY } from '../config/sites.js';
+import { fetchDataa } from "./newtemp.js";
 
-export async function executeScraping(siteId) {
-    // 1. Find site config
+puppeteer.use(StealthPlugin());
+
+export async function executeScraper(siteId) {
     const config = SITES_REGISTRY.find(s => s.id === siteId);
-    if (!config) throw new Error("Site ID not found in registry");
+    if (!config) throw new Error("Site ID not found");
 
-    console.log(`📡 Starting Scraper for: ${config.name} | Method: ${config.method}`);
-
-    // 2. Route to the correct Strategy
-    let products = [];
-    if (config.method === "METHOD_A") {
-        products = await runMethodA(config.base_url, config.selectors);
-    } else if (config.method === "METHOD_B") {
-        products = await runMethodB(config.base_url, config.selectors);
-    }
-    // ... add Method C, D, E later
-
-    if (products.length === 0) {
-        console.log(`⚠️ No products found for ${config.name}`);
-        return;
-    }
-
-    // 3. Connect to the correct Database (Dynamic!)
+    // 1. Get the correct Database (Shoes vs Watches)
     const db = await dbManager.getDb(config.category);
 
-    // 4. Save Products with the site URL (for your API filter)
-    for (const item of products) {
-        await saveToDatabase(db, {
-            ...item,
-            productFetchedFrom: config.base_url // This matches your LIKE query
-        });
+    // 2. Launch Browser
+    // const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+    // const page = await browser.newPage();
+
+    try {
+        // 3. Select Strategy
+        if (config.method === "METHOD_A") {
+            // This is your Cartpe logic
+            console.log("METHOD_A");
+
+            await fetchDataa(config.base_url);
+        } 
+        else if (config.method === "METHOD_B") {
+            console.log(siteId);
+            
+            console.log("METHOD_B");
+            
+         }
+
+    } catch (err) {
+        console.error(`Scraper failed for ${siteId}:`, err.message);
+    } finally {
+        console.log(`🏁 Finished process for ${config.name}`);
     }
-
-    console.log(`✅ Success! ${products.length} products saved to ${config.category}.db`);
-}
-
-async function saveToDatabase(db, p) {
-    const sql = `INSERT OR REPLACE INTO PRODUCTS (
-        productName, productOriginalPrice, productFetchedFrom, productUrl, 
-        featuredimg, imageUrl, productBrand, sizeName, catName, availability
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-    return new Promise(res => db.run(sql, [
-        p.productName, p.productPrice, p.productFetchedFrom, p.productUrl,
-        p.featuredimg, p.imageUrl, p.productBrand, p.sizeName, p.catName, 1
-    ], res));
 }

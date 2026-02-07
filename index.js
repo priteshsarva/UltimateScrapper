@@ -19,8 +19,10 @@ import fs from 'fs';
 import cors from 'cors';
 import { fixBrandsFromMap } from "./services/wpBulkSafeSync.js";
 import productRoutes from './routes/productRoutes.js'
+import { executeScraper } from './core/scraperManager.js'
 // const PORT = process.env.PORT || 5000;
 const PORT = 80; // Force port 80 for production behind Cloudflare
+
 
 
 
@@ -173,3 +175,4 @@ app.listen(PORT, (err) => {
 
 })
 
+executeScraper('zeewatches');
