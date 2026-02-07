@@ -146,12 +146,8 @@ async function fetchDataa(baseUrls) {
 
     const allproducts = [];
 
-    // Use a for...of loop to handle asynchronous operations
-    // const baseUrlsPath = "../baseUrls.js";
-    const baseUrlsPath = path.resolve(__dirname, "../baseUrls.js");
-    // console.log(baseUrlsPath);
-    for (let i = 0; i < baseUrls.length; i++) {
-        const url = baseUrls[0];
+    
+        const url = baseUrls;
         const fullUrl = `${url}/allcategory.html`;
         let productss = []; // Initialize productss for each URL
 
@@ -180,7 +176,7 @@ async function fetchDataa(baseUrls) {
         }
 
         console.log(`✅ Rotated & saved baseUrls.js — next start will begin from: ${baseUrls[0]}`);
-    }
+
 
 
     // Close the browser after scraping all URLs
