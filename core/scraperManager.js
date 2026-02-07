@@ -22,15 +22,16 @@ export async function executeScraper(siteId) {
         if (config.method === "METHOD_A") {
             // This is your Cartpe logic
             console.log("METHOD_A");
+            console.log(config.base_url);
 
             await fetchDataa(config.base_url);
-        } 
+        }
         else if (config.method === "METHOD_B") {
             console.log(siteId);
-            
+
             console.log("METHOD_B");
-            
-         }
+
+        }
 
     } catch (err) {
         console.error(`Scraper failed for ${siteId}:`, err.message);
