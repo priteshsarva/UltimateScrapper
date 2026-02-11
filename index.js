@@ -19,6 +19,8 @@ import fs from 'fs';
 import cors from 'cors';
 import { fixBrandsFromMap } from "./services/wpBulkSafeSync.js";
 import productRoutes from './routes/productRoutes.js'
+import { tenantIdentify } from './middleware/tenantIdentify.js';
+
 import { executeScraper } from './core/scraperManager.js'
 // const PORT = process.env.PORT || 5000;
 const PORT = 80; // Force port 80 for production behind Cloudflare
@@ -77,7 +79,6 @@ app.get('/', async (req, res) => {
 
 app.use(router)
 app.use('/category', categories)
-app.use('/product', product)
 app.use('/size', sizes)
 app.use('/tag', tags)
 app.use('/vendor', vendor)
@@ -85,7 +86,10 @@ app.use('/productsize', productSizes)
 app.use('/productcategories', productCategories)
 app.use('/brand', brand)
 app.use('/productbrand', productBrand)
-app.use('/api', productRoutes);
+
+
+// app.use('/product', product)
+app.use('/product', tenantIdentify, productRoutes);
 
 app.get('/updateserver', async (req, res) => {
     console.log("working");
@@ -175,4 +179,4 @@ app.listen(PORT, (err) => {
 
 })
 
-executeScraper('zeewatches');
+// executeScraper('zeewatches');
