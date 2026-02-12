@@ -114,6 +114,8 @@ async function fetchDataa(singleUrl, DB) {
 
 
     console.log(singleUrl)
+    console.log('singleUrl')
+
     const browser = await puppeteer.launch({
         headless: process.env.PUPPETEER_HEADLESS,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
