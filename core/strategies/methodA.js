@@ -1,15 +1,18 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as cheerio from 'cheerio';
+// import { DB } from '../connect.js';
 import fs from 'fs';
 import path, { resolve } from 'path';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import { rejects } from 'assert';
 import "dotenv/config";
 import { exec } from 'child_process';
 import { humanizePage, humanType } from '../humanize.js';
-// import { upsertProductSafe } from '../services/wpBulkSafeSync.js'
-// import { updateProductCategory } from '../services/updateProductCategoryAndBrand.js';
+import { log } from 'console';
+import { upsertProductSafe } from '../wpBulkSafeSync.js'
+import { updateProductCategory } from '../../services/updateProductCategoryAndBrand.js';
 
 // const baseUrls = ['https://oneshoess.cartpe.in', 'https://reseller-store.cartpe.in'];
 // const baseUrls = ['https://oneshoess.cartpe.in'];
@@ -18,7 +21,8 @@ import { humanizePage, humanType } from '../humanize.js';
 // Use the stealth plugin to avoid detection
 puppeteer.use(StealthPlugin());
 
-// // Promisify DB methods for easier async/await usage
+let DB
+// Promisify DB methods for easier async/await usage
 // DB.run = promisify(DB.run);
 // DB.get = promisify(DB.get);
 
@@ -45,7 +49,7 @@ async function downloadImage(url, folderPath) {
 
         return filePath;
     } catch (error) {
-        console.error(`Error downloading image: ${url}`, error);
+        // // console.error(`Error downloading image: ${url}`, error);
         return null;
     }
 }
@@ -55,6 +59,7 @@ function getFirstTwoWords(inputString) {
     const words = inputString.split(' ');
     return words.slice(0, 2).join(' ');
 }
+
 function gitAutoCommitAndPush() {
     const now = new Date();
     const dateTimeString = now.toISOString().replace('T', ' ').split('.')[0]; // Format: YYYY-MM-DD HH:mm:ss
@@ -63,7 +68,7 @@ function gitAutoCommitAndPush() {
     // Step 1: Add all changes
     exec('git add .', (err) => {
         if (err) {
-            console.error('❌ Error adding files:', err);
+            // console.error('❌ Error adding files:', err);
             return;
         }
         console.log('✅ Changes staged.');
@@ -75,7 +80,7 @@ function gitAutoCommitAndPush() {
                     console.log('ℹ️ No changes to commit.');
                     return;
                 }
-                console.error('❌ Error committing:', err);
+                // console.error('❌ Error committing:', err);
                 return;
             }
             console.log('✅ Changes committed.');
@@ -83,7 +88,7 @@ function gitAutoCommitAndPush() {
             // Step 4: Push to remote
             exec('git push', (err) => {
                 if (err) {
-                    console.error('❌ Error pushing to remote:', err);
+                    // console.error('❌ Error pushing to remote:', err);
                     return;
                 }
                 console.log('✅ Changes pushed to remote repository.');
@@ -92,7 +97,7 @@ function gitAutoCommitAndPush() {
             // Step 3: Pull before pushing to avoid remote conflicts
             // exec('git pull --rebase', (err, stdout, stderr) => {
             //     if (err) {
-            //         console.error('❌ Error pulling from remote:', stderr || err);
+            // // console.error('❌ Error pulling from remote:', stderr || err);
             //         return;
             //     }
             //     console.log('✅ Pulled latest changes from remote.');
@@ -103,12 +108,12 @@ function gitAutoCommitAndPush() {
 }
 
 // Main function to fetch data
-async function fetchDataa(baseUrls, DB) {
+async function fetchDataa(singleUrl, DB) {
     console.log(Date.now());
     gitAutoCommitAndPush();
 
 
-
+    console.log(singleUrl)
     const browser = await puppeteer.launch({
         headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
@@ -144,24 +149,24 @@ async function fetchDataa(baseUrls, DB) {
     const allproducts = [];
 
 
-    const url = baseUrls;
+    const url = singleUrl;
     const fullUrl = `${url}/allcategory.html`;
     let productss = []; // Initialize productss for each URL
 
     try {
         // Scrape categories from the current URL 
-        const categories = await scrapeCategories(page, fullUrl, DB);
+        const categories = await scrapeCategories(page, fullUrl);
         // Scrape products for each category
         productss = await scrapeProducts(page, categories, url); // Pass the base URL here
     } catch (error) {
-        // console.error(`Error fetching data from ${url}:`, error);
+        // // console.error(`Error fetching data from ${url}:`, error);
     } finally {
         // Add scraped products to the final array
         allproducts.push(...productss); // Use spread operator to flatten the array
     }
 
     // 🔁 Rotate: first to last
-    // baseUrls.push(baseUrls.shift());
+    baseUrls.push(baseUrls.shift());
 
     // 💾 Save updated rotation to baseUrls.js (live)
     const newFileContent = `const baseUrls = ${JSON.stringify(baseUrls, null, 3)};\n\nexport { baseUrls };`;
@@ -169,7 +174,7 @@ async function fetchDataa(baseUrls, DB) {
         fs.writeFileSync(baseUrlsPath, newFileContent, "utf-8");
         console.log("File written successfully!");
     } catch (err) {
-        console.error("Failed to write baseUrls.js:", err);
+        // // // console.error("Failed to write baseUrls.js:", err);
     }
 
     console.log(`✅ Rotated & saved baseUrls.js — next start will begin from: ${baseUrls[0]}`);
@@ -217,7 +222,7 @@ async function scrapeCategories(page, fullUrl, retries = 3) {
 
             return categories;
         } catch (error) {
-            console.error(`Attempt ${i + 1} failed:`, error.message);
+            // // // console.error(`Attempt ${i + 1} failed:`, error.message);
             if (i === retries - 1) throw error; // Throw error if all retries fail
             await delay(5000); // Wait 5 seconds before retrying
         }
@@ -358,7 +363,7 @@ async function scrapeProducts(page, categories, baseUrl) {
 
 
         } catch (error) {
-            console.error(`Error scraping products frommmmmm ${productUrl}:`, error.message);
+            // // console.error(`Error scraping products frommmmmm ${productUrl}:`, error.message); 
         }
 
         try {
@@ -388,7 +393,7 @@ async function scrapeProducts(page, categories, baseUrl) {
             // await addProductRelationships(productId, productData);
 
         } catch (error) {
-            console.error(`Error adding product to database:`, error.message);
+            // console.error(`Error adding product to database:`, error.message);
         }
 
     }
@@ -398,50 +403,6 @@ async function scrapeProducts(page, categories, baseUrl) {
     // return [[products.length , url]];
     return products;
 }
-
-// old
-// Function to add product to database
-// async function addProductToDatabase(product) {
-//     console.log("from add product");
-//     console.log(product);
-
-//     try {
-//         const sql = `INSERT INTO PRODUCTS (
-//             productName, productOriginalPrice, productBrand, featuredimg, sizeName, productUrl, imageUrl, productShortDescription, catName, productFetchedFrom
-//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-
-//         // Execute the INSERT query
-//         await DB.run(sql, [
-//             product.productName,
-//             product.productOriginalPrice,
-//             product.productBrand,
-//             product.featuredimg,
-//             JSON.stringify(product.sizeName),
-//             product.productUrl,
-//             JSON.stringify(product.imageUrl),
-//             product.productShortDescription,
-//             product.catName,
-//             product.productFetchedFrom
-//         ]);
-
-//         // Get the last inserted row ID
-//         const row = await DB.get(`SELECT last_insert_rowid() as lastID`);
-//         const lastID = row.lastID;
-
-//         if (!lastID) {
-//             throw new Error('Failed to retrieve last inserted ID');
-//         }
-
-//         console.log('Inserted product with ID:', lastID);
-//         return lastID;
-//     } catch (error) {
-//         console.error('Error adding product to database:', error.message);
-//         throw error; // Re-throw the error to handle it in the calling function
-//     }
-// }
-
-
-
 
 async function addProductToDatabase(product, callback) {
     console.log("from add product");
@@ -477,7 +438,7 @@ async function addProductToDatabase(product, callback) {
     // Step 1: Insert into DB
     //  DB.run(sql, values, function (err) {
     //       if (err) {
-    //          console.error('❌ Error adding product to database:', err.message);
+    //          // console.error('❌ Error adding product to database:', err.message);
     //          return callback(err);
     //       }
     //     const lastID = this.lastID;
@@ -547,7 +508,7 @@ async function addProductToDatabase(product, callback) {
     //    DB.run(sql, values, function (err) {
     //        console.log("from db run")
     //      if (err) {
-    //        console.error('❌ Error adding product to database:', err.message);
+    //        // console.error('❌ Error adding product to database:', err.message);
     //      reject(err);
     //          } else {
     //            const lastID = this.lastID;
@@ -558,9 +519,6 @@ async function addProductToDatabase(product, callback) {
     // });
 
 }
-
-
-
 
 // Function to add many-to-many relationships
 async function addProductRelationships(productId, product) {
@@ -603,10 +561,10 @@ async function realtiontosize(productId, product) {
                     [productId, sizeRow.sizeId]
                 );
             } else {
-                console.error(`Size "${size}" not found in the database.`);
+                // console.error(`Size "${size}" not found in the database.`);
             }
         } catch (err) {
-            console.error(`Error processing size "${size}":`, err.message);
+            // console.error(`Error processing size "${size}":`, err.message);
         }
     }
 }
@@ -634,141 +592,13 @@ async function relationToBrand(productId, product) {
                 [productId, sizeRow.brandId]
             );
         } else {
-            console.error(`Size "${productBrand}" not found in the database.`);
+            // console.error(`Size "${productBrand}" not found in the database.`);
         }
     } catch (err) {
-        console.error(`Error processing size "${productBrand}":`, err.message);
+        // console.error(`Error processing size "${productBrand}":`, err.message);
     }
 
 }
-
-
-// async function updatproduct(product) {
-//     console.log('from updatproduct');
-
-//     const query = `SELECT productId FROM PRODUCTS WHERE productUrl = ?`;
-//     try {
-//         // Step 1: Select the productid based on the producturl
-//         await DB.get(query, [product.productUrl], async (err, row) => {
-//             if (err) {
-//                 return console.error(err.message);
-//             }
-//             console.log(`row : ${row}`);
-
-
-//             if (row) {
-//                 const productId = row.productid;
-
-
-//                 // Step 2: Update all values where productid matches
-
-
-
-//                 let query = 'UPDATE PRODUCTS SET ';
-//                 const updates = []
-//                 const values = []
-
-//                 if (typeof product.productName !== 'undefined') {
-//                     updates.push(`productName = ?`);
-//                     values.push(product.productName);
-//                 }
-//                 if (typeof product.productPrice !== 'undefined') {
-//                     updates.push(`productPrice = ?`);
-//                     values.push(product.productPrice);
-//                 }
-//                 if (typeof product.productPriceWithoutDiscount !== 'undefined') {
-//                     updates.push(`productPriceWithoutDiscount = ?`);
-//                     values.push(product.productPriceWithoutDiscount);
-//                 }
-//                 if (typeof product.productOriginalPrice !== 'undefined') {
-//                     updates.push(`productOriginalPrice = ?`);
-//                     values.push(product.productOriginalPrice);
-//                 }
-//                 if (typeof product.productFetchedFrom !== 'undefined') {
-//                     updates.push(`productFetchedFrom = ?`);
-//                     values.push(product.productFetchedFrom);
-//                 }
-//                 if (typeof product.ProductUrl !== 'undefined') {
-//                     updates.push(`ProductUrl = ?`);
-//                     values.push(product.ProductUrl);
-//                 }
-//                 if (typeof product.productShortDescription !== 'undefined') {
-//                     updates.push(`productShortDescription = ?`);
-//                     values.push(product.productShortDescription);
-//                 }
-//                 if (typeof product.productDescription !== 'undefined') {
-//                     updates.push(`productDescription = ?`);
-//                     values.push(product.productDescription);
-//                 }
-//                 if (typeof product.productBrand !== 'undefined') {
-//                     updates.push(`productBrand = ?`);
-//                     values.push(product.productBrand);
-//                 }
-//                 if (typeof product.productLastUpdated !== 'undefined') {
-//                     updates.push(`productLastUpdated = ?`);
-//                     values.push(product.productLastUpdated);
-//                 } else {
-//                     updates.push(`productLastUpdated = ?`);
-//                     values.push(Date.now());
-//                 }
-
-//                 let sql = query += updates.join(', ') + ' WHERE productId = ?';
-
-//                 try {
-//                     await DB.run(sql, [...values, productId], function (err) {
-//                         console.log("updated");
-
-//                         if (err) {
-//                             // console.error(err.message); // Log the error message
-//                             // Check for specific error codes if needed
-//                             if (err.code === 'SQLITE_CONSTRAINT') {
-//                                 return res.status(400).send({
-//                                     code: "400",
-//                                     status: "Unique constraint failed",
-//                                     message: "A record with this unique value already exists."
-//                                 });
-//                             } else {
-//                                 return res.status(500).send({
-//                                     code: "500",
-//                                     status: "Internal Server Error",
-//                                     message: err.message,
-//                                 });
-//                             }
-//                         }
-//                         if (this.changes === 1) {
-
-//                             let data = { status: 200, message: `data updated with id: ${id} ` }
-//                             let content = JSON.stringify(data);
-//                             console.log(content);
-//                         } else {
-//                             let data = { status: 201, message: `no data has been changed` }
-//                             let content = JSON.stringify(data);
-//                             console.log(content);
-//                         }
-
-//                     })
-
-//                 } catch (err) {
-//                     console.log(err.message);
-//                 }
-
-//             } else {
-//                 console.log('No product found with the given URL.');
-//                 console.log(" product uploaded");
-
-//                 const productId = await addProductToDatabase(product);
-//                 await addProductRelationships(productId, product);
-//             }
-//         })
-//     } catch (error) {
-//         console.log("qurey");
-
-//     }
-
-// }
-
-
-// Function to handle "View More" button clicks
 
 function toBoolean(val) {
     if (val === true || val === "true" || val === 1 || val === "1") {
@@ -777,18 +607,15 @@ function toBoolean(val) {
     if (val === false || val === "false" || val === 0 || val === "0") {
         return false;
     }
-    console.warn("Unrecognized boolean-like value:", val);
+    // console.warn("Unrecognized boolean-like value:", val);
     return false; // or throw error
 }
-
-
 
 async function updateProduct(product) {
     console.log('from updateProduct');
     let skipforwordpress = false;
 
     const query = `SELECT * FROM PRODUCTS WHERE productUrl = ?`;
-
 
     try {
         // Step 1: Select the productId based on the productUrl
@@ -797,7 +624,7 @@ async function updateProduct(product) {
         const row = await new Promise((resolve, reject) => {
             DB.all(query, [product.productUrl], (err, row) => {
                 if (err) {
-                    console.error(`DB GET Error: ${err}`);
+                    // <!-- // console.error(`DB GET Error: ${err}`); -->
                     reject(err);
                 } else {
                     resolve(row);
@@ -881,9 +708,9 @@ async function updateProduct(product) {
                     }
                 } catch (err) {
                     if (err.code === 'SQLITE_CONSTRAINT') {
-                        console.error({ code: 400, status: "Unique constraint failed", message: "A record with this unique value already exists." });
+                        // <!-- // console.error({ code: 400, status: "Unique constraint failed", message: "A record with this unique value already exists." }); -->
                     } else {
-                        console.error({ code: 500, status: "Internal Server Error", message: err.message });
+                        // <!-- // console.error({ code: 500, status: "Internal Server Error", message: err.message }); -->
                     }
                 }
             }
@@ -903,16 +730,13 @@ async function updateProduct(product) {
             skipforwordpress: skipforwordpress
         };
     } catch (error) {
-        console.error("Error in query:", error.message);
+        // <!-- // console.error("Error in query:", error.message); -->
         return {
             productId: null,
             skipforwordpress: null
         }; // Return null if there was a failure
     }
 }
-
-
-
 
 async function viewMore(page, productCount) {
     const count = Math.ceil(productCount / 12);
@@ -925,10 +749,11 @@ async function viewMore(page, productCount) {
             console.log(`Button clicked = ${i}`);
             await delay(4000);
         } catch (error) {
-            console.error('Error clicking "View More" button:', error + i);
+            // <!-- // console.error('Error clicking "View More" button:', error + i); -->
         }
     }
 }
+
 async function scrapeImages(page, url) {
 
     console.log(`Scraping images from: ${url}`);
@@ -943,7 +768,7 @@ async function scrapeImages(page, url) {
         const row = await new Promise((resolve, reject) => {
             DB.all(query, [url], (err, row) => {
                 if (err) {
-                    console.error(`DB GET Error: ${err}`);
+                    // <!-- // console.error(`DB GET Error: ${err}`); -->
                     reject(err);
                 } else {
                     resolve(row);
@@ -990,21 +815,17 @@ async function scrapeImages(page, url) {
 
                 return { imageSlides, productShortDescription, videoURL };
             } catch (error) {
-                console.error('Error fetching images:', error.message);
+                // <!-- // console.error('Error fetching images:', error.message); -->
                 return { imageSlides: [], productShortDescription: '', videoURL: '' };
             }
 
         }
 
     } catch (error) {
-        console.error("Error in query:", error.message);
+        // <!-- // console.error("Error in query:", error.message); -->
     }
 
 }
-
-
-
-
 
 // Start the scraping process
 export {

@@ -320,9 +320,6 @@ product.get('/firstdata', (req, res) => {
         });
 });
 
-
-
-
 product.get('/check-old-sizes', (req, res) => {
     res.set('content-type', 'application/json');
 
@@ -523,8 +520,6 @@ product.get('/mark-unavailable-products', (req, res) => {
     });
 });
 
-
-
 // API: Mark selected categories as unavailable
 product.get('/mark-categories-unavailable', (req, res) => {
     const blockedCategories = [
@@ -613,7 +608,6 @@ product.get('/set-luxury-watch-category', (req, res) => {
 
 });
 
-
 product.get('/results/', (req, res) => {
     res.set('content-type', 'application/json');
 
@@ -652,7 +646,6 @@ product.get('/results/', (req, res) => {
         });
     });
 });
-
 
 product.get('/:id', (req, res) => {
 

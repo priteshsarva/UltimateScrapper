@@ -9,7 +9,7 @@ const router = express.Router();
  * Endpoint: /product/search
  */
 router.get('/search', async (req, res) => {
-    console.log("search");
+    // console.log("search");
 
     const { q, brand, size, category } = req.query;
     const limit = parseInt(req.query.result) || 2;

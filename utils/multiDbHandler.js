@@ -21,7 +21,7 @@ export async function getClientData(clientConfig, queryType, queryParams) {
                 params.push(...searchKeys);
             }
         }
-console.log(sql, params);
+// console.log(sql, params);
 
         const rows = await new Promise((res) => db.all(sql, params, (err, rows) => res(rows || [])));
         // Tag result so we know which DB it came from

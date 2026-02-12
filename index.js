@@ -51,9 +51,6 @@ const PORT = 80; // Force port 80 for production behind Cloudflare
 // console.log(`Path Found ${chromiumPath}`);
 
 
-
-
-
 const app = express()
 app.use(express.json());// for parsing application/json
 // Enable CORS for all routes
@@ -179,4 +176,4 @@ app.listen(PORT, (err) => {
 
 })
 
-// executeScraper('zeewatches');
+executeScraper('zeewatches');
