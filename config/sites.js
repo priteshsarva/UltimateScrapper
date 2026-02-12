@@ -1,4 +1,13 @@
 export const SITES_REGISTRY = [
+    
+    {
+        id: "metrokicks",
+        name: "metro kicks",
+        base_url: "https://metro-kicks.cartpe.in/",
+        category: "shoes",
+        method: "METHOD_A",
+        searchKey: "metrokicks",
+    },
     {
         id: "mangoenterprise",
         name: "Mango Enterprise",
@@ -10,7 +19,7 @@ export const SITES_REGISTRY = [
     {
         id: "zeewatches",
         name: "Zee Watches",
-        base_url: "https://zeewatches.cartpe.in/",
+        base_url: "https://zeewatches.cartpe.in",
         category: "watches",
         method: "METHOD_A",
         searchKey: "zeewatches",

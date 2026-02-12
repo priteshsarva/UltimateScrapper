@@ -20,6 +20,8 @@ import cors from 'cors';
 import { fixBrandsFromMap } from "./services/wpBulkSafeSync.js";
 import productRoutes from './routes/productRoutes.js'
 import { tenantIdentify } from './middleware/tenantIdentify.js';
+import { SITES_REGISTRY } from './config/sites.js';
+
 
 import { executeScraper } from './core/scraperManager.js'
 // const PORT = process.env.PORT || 5000;
@@ -129,7 +131,7 @@ app.get('/updateserver', async (req, res) => {
     res.status(200).json({ status: 200, message: `Server updated` });
 })
 
-app.get('/devproductupdates', (req, res) => {
+app.get('/devproductupdates',async (req, res) => {
     res.set('content-type', 'application/json');
     // Get the current timestamp
     const timestamp = Date.now();
@@ -153,7 +155,13 @@ app.get('/devproductupdates', (req, res) => {
     // Format the date and time
     const formattedDate = date.toLocaleString('en-IN', options);
     try {
-        fetchDataa(baseUrls);
+        // fetchDataa(baseUrls);
+
+        for (const site of SITES_REGISTRY) {
+            console.log(site.searchKey);
+            await executeScraper(site.searchKey); // ✅ correct
+        }
+
         res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
     } catch (error) {
         console.error('Error:', error.message);
@@ -176,4 +184,4 @@ app.listen(PORT, (err) => {
 
 })
 
-executeScraper('zeewatches');
+// executeScraper('metrokicks');

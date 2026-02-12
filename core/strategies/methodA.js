@@ -110,14 +110,14 @@ function gitAutoCommitAndPush() {
 // Main function to fetch data
 async function fetchDataa(singleUrl, DB) {
     console.log(Date.now());
-    gitAutoCommitAndPush();
+    // gitAutoCommitAndPush();
 
 
     console.log(singleUrl)
     console.log('singleUrl')
 
     const browser = await puppeteer.launch({
-        headless: process.env.PUPPETEER_HEADLESS,
+        headless: false,
         // executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
         defaultViewport: { width: 1080, height: 800 },
         args: [
@@ -157,39 +157,35 @@ async function fetchDataa(singleUrl, DB) {
 
     try {
         // Scrape categories from the current URL 
-        const categories = await scrapeCategories(page, fullUrl);
+        const categories = await scrapeCategories(page, fullUrl, DB);
         // Scrape products for each category
-        productss = await scrapeProducts(page, categories, url); // Pass the base URL here
+        productss = await scrapeProducts(page, categories, url, DB); // Pass the base URL here
     } catch (error) {
         // // console.error(`Error fetching data from ${url}:`, error);
     } finally {
-        // Add scraped products to the final array
+        // Add scraped products to the final array        
         allproducts.push(...productss); // Use spread operator to flatten the array
     }
 
     // 🔁 Rotate: first to last
-    baseUrls.push(baseUrls.shift());
+    // baseUrls.push(baseUrls.shift());
 
-    // 💾 Save updated rotation to baseUrls.js (live)
-    const newFileContent = `const baseUrls = ${JSON.stringify(baseUrls, null, 3)};\n\nexport { baseUrls };`;
-    try {
-        fs.writeFileSync(baseUrlsPath, newFileContent, "utf-8");
-        console.log("File written successfully!");
-    } catch (err) {
-        // // // console.error("Failed to write baseUrls.js:", err);
-    }
+    // // 💾 Save updated rotation to baseUrls.js (live)
+    // const newFileContent = `const baseUrls = ${JSON.stringify(baseUrls, null, 3)};\n\nexport { baseUrls };`;
+    // try {
+    //     fs.writeFileSync(baseUrlsPath, newFileContent, "utf-8");
+    //     console.log("File written successfully!");
+    // } catch (err) {
+    //     // // // console.error("Failed to write baseUrls.js:", err);
+    // }
 
-    console.log(`✅ Rotated & saved baseUrls.js — next start will begin from: ${baseUrls[0]}`);
-
-
+    // console.log(`✅ Rotated & saved baseUrls.js — next start will begin from: ${baseUrls[0]}`);
 
     // Close the browser after scraping all URLs
     await browser.close();
 
-
-
     // Call the function when your task is done
-    gitAutoCommitAndPush();
+    // gitAutoCommitAndPush();
     console.log("finished");
     console.log(Date.now());
     return allproducts;
@@ -197,7 +193,9 @@ async function fetchDataa(singleUrl, DB) {
 }
 
 // Function to scrape categories
-async function scrapeCategories(page, fullUrl, retries = 3) {
+async function scrapeCategories(page, fullUrl, DB, retries = 3) {
+    console.log("scrapeCategories");
+
     for (let i = 0; i < retries; i++) {
         try {
             // Navigate to the category page
@@ -213,14 +211,18 @@ async function scrapeCategories(page, fullUrl, retries = 3) {
                 }));
             });
 
+
             // Add categories to the database
             for (const cat of categories) {
                 const catExists = await DB.get(`SELECT catId FROM CATEGORIES WHERE catName = ?`, [cat.catTitle]);
+
                 if (!catExists) {
                     await DB.run(`INSERT INTO CATEGORIES (catName, catImg, catSlug) VALUES (?, ?, ?)`, [cat.catTitle, cat.catimg, cat.caturl]);
                     console.log(`Added category: ${cat.catTitle}`);
                 }
             }
+
+            console.log(categories);
 
             return categories;
         } catch (error) {
@@ -232,7 +234,7 @@ async function scrapeCategories(page, fullUrl, retries = 3) {
 }
 
 // Function to scrape products
-async function scrapeProducts(page, categories, baseUrl) {
+async function scrapeProducts(page, categories, baseUrl, DB) {
     const products = [];
     await humanizePage(page, { mouseMoves: 3 });
     // Loop through each category
@@ -241,17 +243,17 @@ async function scrapeProducts(page, categories, baseUrl) {
         const productUrl = cat.caturl;
         try {
             // Navigate to the product page
-            await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 120000 }); // Increase timeout to 120 seconds
+            await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 6000 }); // Increase timeout to 120 seconds
             await page.waitForSelector('#product_list_div', { timeout: 60000 }); // Increase timeout
 
             // Get the total number of products
             const productCount = await page.evaluate(() => {
                 return document.querySelector('#total_result_cnt')?.innerText || 0;
             });
-            await viewMore(page, productCount)
+
+            // for temporary disable 
+            // await viewMore(page, productCount)
             console.log("After view more");
-
-
 
             const productElements = await page.evaluate(() => {
                 const container = document.querySelector('#product_list_div');
@@ -327,7 +329,7 @@ async function scrapeProducts(page, categories, baseUrl) {
 
             // Scrape images and descriptions for each product
             for (const product of productElements) {
-                const { imageSlides, productShortDescription, videoURL } = await scrapeImages(page, product.detailUrl);
+                const { imageSlides, productShortDescription, videoURL } = await scrapeImages(page, product.detailUrl, DB);
                 const result = getFirstTwoWords(product.title);
 
                 // Download images and get local paths
@@ -372,12 +374,13 @@ async function scrapeProducts(page, categories, baseUrl) {
             console.log("from try block");
             for (const eachproduct of catProductss) {
                 updateProductCategory(eachproduct);
-                const { productId, skipforwordpress } = await updateProduct(eachproduct);
+                const { productId, skipforwordpress } = await updateProduct(eachproduct, DB);
                 if (skipforwordpress) {
                     console.log(`Skipped upsertProductSafe due to WordPress flag. ProductID = ${productId}}`);
                 } else {
                     console.log(`upsertProductSafe with id=${productId} `)
-                    await upsertProductSafe(eachproduct, productId);
+                    //temporary
+                    // await upsertProductSafe(eachproduct, productId);
                 }
                 console.log("From Each Product");
             }
@@ -403,10 +406,12 @@ async function scrapeProducts(page, categories, baseUrl) {
     // console.log([[products.length , url]]);
 
     // return [[products.length , url]];
+    console.log(products , `1`);
+    
     return products;
 }
 
-async function addProductToDatabase(product, callback) {
+async function addProductToDatabase(product, DB) {
     console.log("from add product");
     console.log(product);
 
@@ -436,31 +441,8 @@ async function addProductToDatabase(product, callback) {
     console.log('➡️ SQL:', sql);
     console.log('➡️ Values:', values);
 
-
-    // Step 1: Insert into DB
-    //  DB.run(sql, values, function (err) {
-    //       if (err) {
-    //          // console.error('❌ Error adding product to database:', err.message);
-    //          return callback(err);
-    //       }
-    //     const lastID = this.lastID;
-    //     console.log('✅ Inserted product with ID:', lastID);
-    //
-    //     // Step 2: Return lastID via callback
-    //     return callback(null, lastID);
-    //  });
-
     console.log('🧠 DB object type:', typeof DB);
     console.log('🧠 Has run method?', typeof DB.run);
-
-
-    // const lastID = await new Promise((resolve, reject) => {
-    // DB.run(sql, values, function (err) {
-    // if (err) return reject(err);
-    // resolve(this.lastID); // ✅ Always gives correct inserted row ID
-    // });
-    // });
-
 
     const lastID = await new Promise((resolve, reject) => {
         const stmt = DB.prepare(sql);
@@ -474,26 +456,6 @@ async function addProductToDatabase(product, callback) {
         stmt.finalize();
     });
 
-
-    // Execute the INSERT query
-    //   await DB.run(sql, [
-    //        product.productName,
-    //        product.productOriginalPrice,
-    //        product.productBrand,
-    //        product.featuredimg,
-    //        JSON.stringify(product.sizeName),
-    //       product.productUrl,
-    //       JSON.stringify(product.imageUrl),
-    //       product.productShortDescription,
-    //       product.catName,
-    //       product.productFetchedFrom,
-    //       Date.now() // Add current timestamp for new products
-    //   ]);
-
-    // Get the last inserted row ID
-    // const row = await DB.get(`SELECT last_insert_rowid() as lastID`);
-    // const lastID = row.lastID;
-
     if (!lastID) {
         throw new Error('Failed to retrieve last inserted ID');
     }
@@ -501,29 +463,10 @@ async function addProductToDatabase(product, callback) {
     console.log('Inserted product with ID:', lastID);
     return lastID;
 
-
-    // ✅ Return a Promise so we can `await` this function
-    // return new Promise((resolve, reject) => {
-
-    //    console.log("from Promise")
-
-    //    DB.run(sql, values, function (err) {
-    //        console.log("from db run")
-    //      if (err) {
-    //        // console.error('❌ Error adding product to database:', err.message);
-    //      reject(err);
-    //          } else {
-    //            const lastID = this.lastID;
-    //          console.log('✅ Inserted product with ID:', lastID);
-    //        resolve(lastID); // <-- ✅ return lastID to caller
-    //  }
-    //     });
-    // });
-
 }
 
 // Function to add many-to-many relationships
-async function addProductRelationships(productId, product) {
+async function addProductRelationships(productId, product, DB) {
 
     // Add product-category relationship
     const catRow = await DB.get(`SELECT catId FROM CATEGORIES WHERE catName = ?`, [product.catName]);
@@ -532,12 +475,12 @@ async function addProductRelationships(productId, product) {
     }
 
 
-    await realtiontosize(productId, product)
-    await relationToBrand(productId, product)
+    await realtiontosize(productId, product, DB)
+    await relationToBrand(productId, product, DB)
 
 }
 
-async function realtiontosize(productId, product) {
+async function realtiontosize(productId, product, DB) {
     console.log("product size ");
     console.log(product.sizeName);
 
@@ -570,7 +513,7 @@ async function realtiontosize(productId, product) {
         }
     }
 }
-async function relationToBrand(productId, product) {
+async function relationToBrand(productId, product, DB) {
     console.log("product productBrand ");
     console.log(product.productBrand);
 
@@ -613,7 +556,7 @@ function toBoolean(val) {
     return false; // or throw error
 }
 
-async function updateProduct(product) {
+async function updateProduct(product, DB) {
     console.log('from updateProduct');
     let skipforwordpress = false;
 
@@ -720,10 +663,10 @@ async function updateProduct(product) {
             console.log('No product found with the given URL.');
             console.log("Product uploaded");
 
-            productId = await addProductToDatabase(product);
+            productId = await addProductToDatabase(product, DB);
             skipforwordpress = false;
             console.log("addProductToDatabase Completed")
-            await addProductRelationships(productId, product);
+            await addProductRelationships(productId, product, DB);
         }
 
         // ✅ Return the productId in all cases
@@ -756,7 +699,7 @@ async function viewMore(page, productCount) {
     }
 }
 
-async function scrapeImages(page, url) {
+async function scrapeImages(page, url, DB) {
 
     console.log(`Scraping images from: ${url}`);
     const imageSlides = [];
