@@ -2,8 +2,8 @@ import sqlite3 from 'sqlite3';
 import { dbManager } from './models/dbManager.js';
 
 const MIGRATION_CONFIG = [
-    { category: 'shoes', oldDbPath: './DataBaseShoes.db' },
-    { category: 'watches', oldDbPath: './DataBase.db' }
+    { category: 'shoes', oldDbPath: './old_shoes.db' },
+    { category: 'watches', oldDbPath: './old_watch.db' }
 ];
 
 async function startMigration() {

@@ -29,30 +29,6 @@ const PORT = 80; // Force port 80 for production behind Cloudflare
 
 
 
-
-
-// // List of possible Chromium paths
-// const chromiumPaths = ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/lib/chromium/chrome"];
-
-// // Function to find the first existing Chromium path
-// const getChromiumPath = () => {
-//     for (const path of chromiumPaths) {
-//         if (fs.existsSync(path)) {
-//             console.log(`✅ Chromium found at: ${path}`);
-//             return path;
-//         }
-//     }
-//     console.error("❌ Chromium NOT found. Puppeteer may not work!");
-//     return null;
-// };
-
-// // Log the detected Chromium path
-// console.log("🔍 Checking for Chromium...");
-// // const chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH || getChromiumPath()
-// const chromiumPath =  getChromiumPath()
-// console.log(`Path Found ${chromiumPath}`);
-
-
 const app = express()
 app.use(express.json());// for parsing application/json
 // Enable CORS for all routes
@@ -76,15 +52,15 @@ app.get('/', async (req, res) => {
 
 });
 
-app.use(router)
-app.use('/category', categories)
-app.use('/size', sizes)
-app.use('/tag', tags)
-app.use('/vendor', vendor)
-app.use('/productsize', productSizes)
-app.use('/productcategories', productCategories)
-app.use('/brand', brand)
-app.use('/productbrand', productBrand)
+// app.use(router)
+// app.use('/category', categories)
+// app.use('/size', sizes)
+// app.use('/tag', tags)
+// app.use('/vendor', vendor)
+// app.use('/productsize', productSizes)
+// app.use('/productcategories', productCategories)
+// app.use('/brand', brand)
+// app.use('/productbrand', productBrand)
 
 
 // app.use('/product', product)
@@ -170,11 +146,10 @@ app.get('/devproductupdates',async (req, res) => {
 
 })
 
-app.get('/updatebrand', (req, res) => {
-    fixBrandsFromMap();
-    res.status(200).json({ status: 200, message: `working` });
-
-})
+// app.get('/updatebrand', (req, res) => {
+//     fixBrandsFromMap();
+//     res.status(200).json({ status: 200, message: `working` });
+// })
 
 app.listen(PORT, (err) => {
     if (err) {
