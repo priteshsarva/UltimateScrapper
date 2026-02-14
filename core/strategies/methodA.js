@@ -49,7 +49,7 @@ async function downloadImage(url, folderPath) {
 
         return filePath;
     } catch (error) {
-        // // console.error(`Error downloading image: ${url}`, error);
+        console.error("Error downloading image:", url, error);
         return null;
     }
 }
@@ -68,7 +68,7 @@ function gitAutoCommitAndPush() {
     // Step 1: Add all changes
     exec('git add .', (err) => {
         if (err) {
-            // console.error('❌ Error adding files:', err);
+            console.error('❌ Error adding files', err);
             return;
         }
         console.log('✅ Changes staged.');
@@ -80,7 +80,7 @@ function gitAutoCommitAndPush() {
                     console.log('ℹ️ No changes to commit.');
                     return;
                 }
-                // console.error('❌ Error committing:', err);
+                console.error('❌ Error committing:', err);
                 return;
             }
             console.log('✅ Changes committed.');
@@ -88,7 +88,7 @@ function gitAutoCommitAndPush() {
             // Step 4: Push to remote
             exec('git push', (err) => {
                 if (err) {
-                    // console.error('❌ Error pushing to remote:', err);
+                    console.error('❌ Error pushing to remote:', err);
                     return;
                 }
                 console.log('✅ Changes pushed to remote repository.');
@@ -97,7 +97,7 @@ function gitAutoCommitAndPush() {
             // Step 3: Pull before pushing to avoid remote conflicts
             // exec('git pull --rebase', (err, stdout, stderr) => {
             //     if (err) {
-            // // console.error('❌ Error pulling from remote:', stderr || err);
+            // console.error('❌ Error pulling from remote:', stderr || err);
             //         return;
             //     }
             //     console.log('✅ Pulled latest changes from remote.');
@@ -161,7 +161,7 @@ async function fetchDataa(singleUrl, DB) {
         // Scrape products for each category
         productss = await scrapeProducts(page, categories, url, DB); // Pass the base URL here
     } catch (error) {
-        // // console.error(`Error fetching data from ${url}:`, error);
+        console.error(`Error fetching data from ${url}` + ":", error);
     } finally {
         // Add scraped products to the final array        
         allproducts.push(...productss); // Use spread operator to flatten the array
@@ -226,7 +226,7 @@ async function scrapeCategories(page, fullUrl, DB, retries = 3) {
 
             return categories;
         } catch (error) {
-            // // // console.error(`Attempt ${i + 1} failed:`, error.message);
+            console.error(`Attempt ${i + 1} failed`, error.message);
             if (i === retries - 1) throw error; // Throw error if all retries fail
             await delay(5000); // Wait 5 seconds before retrying
         }
@@ -388,11 +388,11 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
                 updateProductCategory(eachproduct);
                 const { productId, skipforwordpress } = await updateProduct(eachproduct, DB);
                 if (skipforwordpress) {
-                    console.log(`Skipped upsertProductSafe due to WordPress flag. ProductID = ${productId}}`);
+                    console.log("Skipped upsertProductSafe due to WordPress flag. ProductID = " + productId);
                 } else {
-                    console.log(`upsertProductSafe with id=${productId} `)
-                    //temporary
-                    // await upsertProductSafe(eachproduct, productId);
+                    console.log("upsertProductSafe with id" + productId)
+                    // temporary
+                    await upsertProductSafe(eachproduct, productId);
                 }
                 console.log("From Each Product");
             }

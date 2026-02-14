@@ -38,8 +38,8 @@ export async function executeScraper(siteId) {
         }
 
     } catch (err) {
-        console.error(`Scraper failed for ${siteId}:`, err.message);
+       console.error("Scraper failed for " + siteId + ":", err.message);
     } finally {
-        console.log(`🏁 Finished process for ${config.name}`);
+        console.log(`Finished process for ${config.name}`);
     }
 }
