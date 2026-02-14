@@ -41,11 +41,11 @@ router.get('/search', async (req, res) => {
 router.get('/allresults', async (req, res) => {
     // REMOVE the ORDER BY from here. 
     // getClientData handles sorting automatically for you.
-    const sql = `SELECT * FROM PRODUCTS ORDER BY productDateCreation DESC`; 
-    
+    const sql = `SELECT * FROM PRODUCTS ORDER BY productDateCreation DESC`;
+
     try {
         const results = await getClientData(req.clientConfig, 'allresults', { sql, params: [] });
-        res.json({ results });
+        res.json(results);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

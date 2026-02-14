@@ -244,7 +244,19 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
         try {
             // Navigate to the product page
             await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 6000 }); // Increase timeout to 120 seconds
-            await page.waitForSelector('#product_list_div', { timeout: 60000 }); // Increase timeout
+
+            // await page.waitForSelector('#product_list_div', { timeout: 60000 }); // Increase timeout
+
+            // will procced to next step if either products are found or "not found" message appears, otherwise it will timeout after 15 seconds
+            const result = await Promise.race([
+                page.waitForSelector('#product_list_div', { timeout: 15000 }).then(() => 'products'),
+                page.waitForSelector('.alert.alert-danger.text-center', { timeout: 15000 }).then(() => 'notfound')
+            ]);
+
+            if (result === 'notfound') {
+                console.log(`No products found on ${productUrl}, skipping...`);
+                continue; // go to next category
+            }
 
             // Get the total number of products
             const productCount = await page.evaluate(() => {
@@ -252,7 +264,7 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             });
 
             // for temporary disable 
-            // await viewMore(page, productCount)
+            await viewMore(page, productCount)
             console.log("After view more");
 
             const productElements = await page.evaluate(() => {
@@ -406,8 +418,8 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
     // console.log([[products.length , url]]);
 
     // return [[products.length , url]];
-    console.log(products , `1`);
-    
+    console.log(products, `1`);
+
     return products;
 }
 
