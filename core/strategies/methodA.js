@@ -264,7 +264,7 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             });
 
             // for temporary disable 
-            await viewMore(page, productCount)
+            // await viewMore(page, productCount)
             console.log("After view more");
 
             const productElements = await page.evaluate(() => {

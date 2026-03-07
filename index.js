@@ -16,6 +16,7 @@ import brand from "./routes/brand.js";
 import productBrand from "./routes/productBrand.js";
 import { baseUrls } from "./config/baseUrls.js";
 import fs from 'fs';
+import path from 'path';
 import cors from 'cors';
 import { fixBrandsFromMap } from "./services/wpBulkSafeSync.js";
 import productRoutes from './routes/productRoutes.js'
@@ -27,6 +28,8 @@ import { executeScraper } from './core/scraperManager.js'
 // const PORT = process.env.PORT || 5000;
 const PORT = 80; // Force port 80 for production behind Cloudflare
 
+
+const STATE_FILE = path.join(process.cwd(), 'scraper-state.json');
 
 
 const app = express()
@@ -107,7 +110,7 @@ app.get('/updateserver', async (req, res) => {
     res.status(200).json({ status: 200, message: `Server updated` });
 })
 
-app.get('/devproductupdates',async (req, res) => {
+app.get('/devproductupdates', async (req, res) => {
     res.set('content-type', 'application/json');
     // Get the current timestamp
     const timestamp = Date.now();
@@ -135,7 +138,9 @@ app.get('/devproductupdates',async (req, res) => {
 
         for (const site of SITES_REGISTRY) {
             console.log(site.searchKey);
-            await executeScraper(site.searchKey); // ✅ correct
+            // await executeScraper(site.searchKey); // ✅ correct
+            // Execute the rotator
+            await runRotator();
         }
 
         res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
@@ -159,4 +164,46 @@ app.listen(PORT, (err) => {
 
 })
 
-// executeScraper('metrokicks');
+
+async function runRotator() {
+    let currentIndex = 0;
+
+    // 2. Read the last saved index from the file (if it exists)
+    if (fs.existsSync(STATE_FILE)) {
+        try {
+            const rawData = fs.readFileSync(STATE_FILE, 'utf-8');
+            const state = JSON.parse(rawData);
+            if (typeof state.currentIndex === 'number') {
+                currentIndex = state.currentIndex;
+            }
+        } catch (error) {
+            console.error("⚠️ Error reading state file. Starting from 0.");
+        }
+    }
+
+    // 3. Ensure the index is valid (in case you removed sites from the registry)
+    if (currentIndex >= SITES_REGISTRY.length) {
+        currentIndex = 0;
+    }
+
+    // 4. Select the ONE site for this specific run
+    const site = SITES_REGISTRY[currentIndex];
+
+    console.log(`\n🔄 [ROTATOR] Run triggered. Scraping site ${currentIndex + 1} of ${SITES_REGISTRY.length}`);
+    console.log(`🌐 Target: ${site.name} (${site.searchKey})`);
+
+    // 5. Execute your scraper for just this site
+    try {
+        await executeScraper(site.searchKey);
+        console.log(`✅ Successfully scraped: ${site.name}`);
+    } catch (err) {
+        console.error(`❌ Error scraping ${site.name}:`, err);
+    }
+
+    // 6. Calculate the next index and save it for the NEXT run
+    const nextIndex = (currentIndex + 1) % SITES_REGISTRY.length; // Loops back to 0 after the last site
+    fs.writeFileSync(STATE_FILE, JSON.stringify({ currentIndex: nextIndex }, null, 2));
+
+    console.log(`⏭️ Next run will scrape index: ${nextIndex} (${SITES_REGISTRY[nextIndex].name})\n`);
+}
+
