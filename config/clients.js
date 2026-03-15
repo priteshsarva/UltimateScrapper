@@ -3,7 +3,7 @@ export const CLIENT_CONFIGS = {
         name: "TimeKeepers",
         access: [
             { database: "watches", manufacturers: "all" },
-            { database: "shoes", manufacturers: ["mangoenterprise", "zeewatches"] } // Example few manufacturers
+            { database: "shoes", manufacturers: "all" } // Example few manufacturers
         ]
     },
     "kicksmania.co.in": {
@@ -15,7 +15,7 @@ export const CLIENT_CONFIGS = {
     "theaquawatch.com": {
         name: "TheAquaWatch",
         access: [
-            { database: "watches", manufacturers: ["wristtimess", "watchhouse11"] }
+            { database: "watches", manufacturers: "all" }
         ]
     }
 };

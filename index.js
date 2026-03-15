@@ -26,7 +26,7 @@ import { SITES_REGISTRY } from './config/sites.js';
 
 import { executeScraper } from './core/scraperManager.js'
 // const PORT = process.env.PORT || 5000;
-const PORT = 80; // Force port 80 for production behind Cloudflare
+const PORT = 3002; // Force port 3002 for production behind Cloudflare
 
 
 const STATE_FILE = path.join(process.cwd(), 'scraper-state.json');

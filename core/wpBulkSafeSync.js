@@ -8,13 +8,73 @@ const WP_URL = process.env.WP_URL;
 const WP_CONSUMER_KEY = process.env.WP_CONSUMER_KEY;
 const WP_CONSUMER_SECRET = process.env.WP_CONSUMER_SECRET;
 
-function getAuthHeader() {
+const WP_SITES =[
+  {
+    domain: "timekeepers.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
+    name: "TimesKeepers",
+    url: process.env.WP_URL,
+    user: process.env.WP_USER,
+    password: process.env.WP_APP_PASSWORD,
+  },
+  {
+    domain: "kicksmania.co.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
+    name: "Kicksmania",
+    url: process.env.WP_URL_1,
+    user: process.env.WP_USER_1,
+    password: process.env.WP_APP_PASSWORD_1,
+  },
+  // add as many as you need...
+];
+
+// Add this new function to handle syncs from your scraper ------------OLD
+// export async function syncProductToAllSites(product, productId = null) {
+//   console.log(`🚀 Syncing scraped product across ${WP_SITES.length} sites...`);
+
+//   const syncPromises = WP_SITES.map((site) =>
+//     upsertProductSafe(product, site, productId)
+//   );
+
+//   await Promise.all(syncPromises);
+// }
+
+// Add this new function to handle syncs from your scraper ----------New
+export async function syncProductToAllSites(product, productId = null) {
+  // 1. Figure out if this product is 'watches' or 'shoes'
+  const databaseType = getProductDatabaseType(product);
+  
+  // 2. Filter WP_SITES based on what CLIENT_CONFIGS allows
+  const eligibleSites = WP_SITES.filter(site => {
+      const config = CLIENT_CONFIGS[site.domain];
+      if (!config) return false; // If site isn't in config, skip it
+
+      // Check if site's access array includes this database type
+      return config.access.some(acc => acc.database === databaseType);
+  });
+
+  if (eligibleSites.length === 0) {
+      console.log(`⚠️ No eligible sites found for product ${product.productName} (Type: ${databaseType})`);
+      return;
+  }
+
+  console.log(`🚀 Syncing[${databaseType}] product '${product.productName}' to ${eligibleSites.length} site(s): ${eligibleSites.map(s => s.name).join(", ")}`);
+
+  // 3. Only sync to the filtered list of eligible sites!
+  const syncPromises = eligibleSites.map((site) =>
+    upsertProductSafe(product, site, productId)
+  );
+
+  await Promise.all(syncPromises);
+}
+
+
+function getAuthHeader(site) {
   // const auth = Buffer.from(`${WP_CONSUMER_KEY}:${WP_CONSUMER_SECRET}`).toString("base64");
   // return `Basic ${auth}`;
 
-  const username = process.env.WP_USER; // <-- add this to your .env
-  const appPassword = process.env.WP_APP_PASSWORD; // <-- add this to your .env
-  const token = Buffer.from(`${username}:${appPassword}`).toString("base64");
+  // const username = process.env.WP_USER; // <-- add this to your .env
+  // const appPassword = process.env.WP_APP_PASSWORD; // <-- add this to your .env
+  // const token = Buffer.from(`${username}:${appPassword}`).toString("base64");
+  const token = Buffer.from(`${site.user}:${site.password}`).toString("base64");
   return `Basic ${token}`;
 }
 
@@ -27,10 +87,10 @@ function getAuthHeadertocreactbrand() {
 
 
 // ---------------- CATEGORY HELPERS ----------------
-async function getCategoryByName(name) {
+async function getCategoryByName(name, site) {
   try {
-    const res = await fetch(`${WP_URL}/wp-json/wc/v3/products/categories?search=${encodeURIComponent(name)}`, {
-      headers: { Authorization: getAuthHeader() },
+    const res = await fetch(`${site.url}/wp-json/wc/v3/products/categories?search=${encodeURIComponent(name)}`, {
+      headers: { Authorization: getAuthHeader(site) },
     });
     const data = await res.json();
     return data.length > 0 ? data[0] : null;
@@ -40,12 +100,12 @@ async function getCategoryByName(name) {
   }
 }
 
-async function createCategory(name) {
+async function createCategory(name, site) {
   try {
-    const res = await fetch(`${WP_URL}/wp-json/wc/v3/products/categories`, {
+    const res = await fetch(`${site.url}/wp-json/wc/v3/products/categories`, {
       method: "POST",
       headers: {
-        Authorization: getAuthHeader(),
+        Authorization: getAuthHeader(site),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name }),
@@ -64,18 +124,18 @@ async function createCategory(name) {
   }
 }
 
-async function getOrCreateCategory(name) {
+async function getOrCreateCategory(name, site) {
   if (!name) return null;
-  let category = await getCategoryByName(name);
-  if (!category) category = await createCategory(name);
+  let category = await getCategoryByName(name, site);
+  if (!category) category = await createCategory(name, site);
   return category?.id || null;
 }
 
 // ---------------- PRODUCT HELPERS ----------------
-async function getProductBySKU(sku) {
+async function getProductBySKU(sku, site) {
   try {
-    const res = await fetch(`${WP_URL}/wp-json/wc/v3/products?sku=${sku}`, {
-      headers: { Authorization: getAuthHeader() },
+    const res = await fetch(`${site.url}/wp-json/wc/v3/products?sku=${sku}`, {
+      headers: { Authorization: getAuthHeader(site) },
     });
 
     // Check if response is JSON
@@ -96,98 +156,14 @@ async function getProductBySKU(sku) {
 }
 
 
-// async function upsertProductSafe(product) {
-//   try {
-//     const sku = product.productId?.toString();
-//     if (!sku) {
-//       console.warn(`⚠️ Skipping product — missing productId: ${product.productName}`);
-//       return;
-//     }
 
-//     const existing = await getProductBySKU(sku);
-//     let method = "POST";
-//     let endpoint = `${WP_URL}/wp-json/wc/v3/products`;
-
-//     if (existing) {
-//       endpoint = `${WP_URL}/wp-json/wc/v3/products/${existing.id}`;
-//       method = "PUT";
-//       console.log(`ℹ️ Updating product ID ${existing.id}`);
-//     } else {
-//       console.log(`🆕 Creating new product: ${product.productName}`);
-//     }
-
-//     const categoryId = await getOrCreateCategory(product.catName);
-
-//     let images = [];
-//     try {
-//       const imgs = JSON.parse(product.imageUrl);
-//       images = imgs.map((src) => ({ src }));
-//     } catch {
-//       if (product.featuredimg) images.push({ src: product.featuredimg });
-//     }
-
-//     const regularPrice = ((product.productOriginalPrice || 0) + 1200).toString();
-
-//     const payload = {
-//       name: product.productName,
-//       type: "simple",
-//       regular_price: regularPrice,
-//       sku,
-//       description: product.productDescription || "",
-//       short_description: product.productShortDescription || "",
-//       categories: categoryId ? [{ id: categoryId }] : [],
-//       meta_data: [
-//         { key: "productFetchedFrom", value: product.productFetchedFrom },
-//         { key: "videoUrl", value: product.videoUrl || "" },
-//         { key: "availability", value: product.availability ? "instock" : "outofstock" },
-//         { key: "productOriginalPrice", value: product.productOriginalPrice },
-//         { key: "featuredimg", value: product.featuredimg },
-//         { key: "imageUrl", value: product.imageUrl },
-//         { key: "productBrand", value: product.productBrand },
-//         { key: "productLastUpdated", value: product.productLastUpdated },
-//         { key: "productDateCreation", value: product.productDateCreation},
-//         { key: "productShortDescription", value: product.productShortDescription},
-//         { key: "productDescription", value: product.productDescription},
-//       ],
-//       stock_status: product.availability ? "instock" : "outofstock",
-//     };
-
-//     // 🚫 Skip image reupload if updating
-//     if (!existing) {
-//       payload.images = images;
-//     }
-
-//     const res = await fetch(endpoint, {
-//       method,
-//       headers: {
-//         Authorization: getAuthHeader(),
-//         "Content-Type": "application/json",
-//       },
-//       body: JSON.stringify(payload),
-//     });
-
-//     const data = await res.json();
-//     if (res.ok) {
-//       console.log(`✅ ${existing ? "Updated" : "Created"}: ${data.name} (ID: ${data.id})`);
-//     } else {
-//       console.error("❌ Error creating/updating product:", data);
-//     }
-//   } catch (err) {
-//     console.error("❌ Unexpected error:", err);
-//   }
-// }
-
-
-
-
-
-async function getOrCreateBrand(brandName) {
+async function getOrCreateBrand(brandName, site) {
   if (!brandName) return null;
 
   try {
-    const searchUrl = `${WP_URL}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(brandName)}`;
+    const searchUrl = `${site.url}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(brandName)}`;
     const searchRes = await fetch(searchUrl, {
-      headers: { Authorization: getAuthHeader() },
+      headers: { Authorization: getAuthHeader(site) },
     });
     const existing = await searchRes.json();
 
@@ -197,10 +173,10 @@ async function getOrCreateBrand(brandName) {
     }
 
     // Create new brand if not found
-    const createRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand`, {
+    const createRes = await fetch(`${site.url}/wp-json/wp/v2/product_brand`, {
       method: "POST",
       headers: {
-        Authorization: getAuthHeader(),
+        Authorization: getAuthHeader(site),
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: brandName }),
@@ -221,7 +197,7 @@ async function getOrCreateBrand(brandName) {
   }
 }
 
-export async function upsertProductSafe(product, productId = null) {
+export async function upsertProductSafe(product, site, productId = null) {
 
 
   try {
@@ -233,7 +209,7 @@ export async function upsertProductSafe(product, productId = null) {
 
     // Use passed productId if available, otherwise look up by SKU
     let existing = null;
-    existing = await getProductBySKU(sku);
+    existing = await getProductBySKU(sku, site);
 
     // if (!productId) {
     //   existing = await getProductBySKU(sku); 
@@ -243,20 +219,20 @@ export async function upsertProductSafe(product, productId = null) {
     // }
 
     let method = "POST";
-    let endpoint = `${WP_URL}/wp-json/wc/v3/products`;
+    let endpoint = `${site.url}/wp-json/wc/v3/products`;
 
     if (existing) {
-      endpoint = `${WP_URL}/wp-json/wc/v3/products/${existing.id}`;
+      endpoint = `${site.url}/wp-json/wc/v3/products/${existing.id}`;
       method = "PUT";
-      console.log(`ℹ️ Updating product ID ${existing.id}`);
+      console.log(`ℹ️ [${site.name}] Updating product ID ${existing.id}`);
     } else {
-      console.log(`🆕 Creating new product: ${product.productName}`);
+      console.log(`🆕 [${site.name}] Creating new product: ${product.productName}`);
     }
 
-    const categoryId = !existing ? await getOrCreateCategory(product.catName) : null;
+    const categoryId = !existing ? await getOrCreateCategory(product.catName, site) : null;
     // const brandId = !existing ? await getOrCreateBrand(product.productBrand) : null;  //use while creating new
     // const brandId = existing ? await getOrCreateBrand(product.productBrand) : null;  //used while i was doing bulk update
-    const brandId = !existing ? await getOrCreateBrand(product.productBrand) : null;  //used while i was doing bulk update from devupdate
+    const brandId = !existing ? await getOrCreateBrand(product.productBrand, site) : null;  //used while i was doing bulk update from devupdate
 
     let images = [];
     try {
@@ -347,7 +323,7 @@ export async function upsertProductSafe(product, productId = null) {
     const res = await fetch(endpoint, {
       method,
       headers: {
-        Authorization: getAuthHeader(),
+        Authorization: getAuthHeader(site),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
@@ -355,12 +331,12 @@ export async function upsertProductSafe(product, productId = null) {
 
     const data = await res.json();
     if (res.ok) {
-      console.log(`✅ ${existing ? "Updated" : "Created"}: ${data.name} (ID: ${data.id})`);
+      console.log(`✅[${site.name}] ${existing ? "Updated" : "Created"}: ${data.name} (ID: ${data.id})`);
     } else {
-      console.error("❌ Error creating/updating product:", data);
+      console.error("❌ [${site.name}] Error creating/updating product:", data);
     }
   } catch (err) {
-    console.error("❌ Unexpected error:", err);
+    console.error("❌ [${site.name}] Unexpected error:", err);
   }
 }
 
@@ -381,6 +357,9 @@ export async function bulkSafeSyncProducts(req, res) {
 
       DB.all(
         "SELECT * FROM PRODUCTS WHERE productLastUpdated >= ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;",
+        // "UPDATE PRODUCTS SET availability = 0 WHERE productFetchedFrom IN (    'https://watchhouse11.cartpe.in/',    'https://saenterprise.cartpe.in/',    'https://jilaniwatches11.cartpe.in/',    'https://thetimekeepers.cartpe.in/')",
+        // "SELECT * FROM PRODUCTS WHERE productFetchedFrom IN (    'https://watchhouse11.cartpe.in/',    'https://saenterprise.cartpe.in/',    'https://jilaniwatches11.cartpe.in/',    'https://thetimekeepers.cartpe.in/')",
+
 
         // [oneDayAgo],
         [twelveAndHalfHoursAgo],
@@ -401,16 +380,24 @@ export async function bulkSafeSyncProducts(req, res) {
 
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
-      console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products)...`);
+      // console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products)...`);
+      console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products) across ${WP_SITES.length} sites...`);
 
-      await Promise.all(batch.map((p) => upsertProductSafe(p)));
+      // await Promise.all(batch.map((p) => upsertProductSafe(p)));
+
+      const syncPromises = batch.flatMap((p) =>
+        WP_SITES.map((site) => upsertProductSafe(p, site))
+      );
+      await Promise.all(syncPromises);
+
       console.log(`✅ Batch ${i / batchSize + 1} complete. Waiting ${delayMs}ms...`);
-
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
     console.log("🎉 Bulk safe sync complete!");
     res.send({ status: "success", message: "Bulk safe sync complete" });
+    // res.json(rows);
+
   } catch (err) {
     console.error("❌ DB error:", err);
     res.status(500).send({ error: err.message });
@@ -484,11 +471,21 @@ export async function BulkProductOutOfStock(req, res) {
 
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
-      console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products)...`);
+      // console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products)...`);
 
-      await Promise.all(batch.map((p) => upsertProductSafe(p)));
+      console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products) across ${WP_SITES.length} sites...`);
+      // await Promise.all(batch.map((p) => upsertProductSafe(p)));
+
+      // 👇 Map over both the batch AND the sites
+      const syncPromises = batch.flatMap((p) =>
+        WP_SITES.map((site) => upsertProductSafe(p, site))
+      );
+
+      // Wait for all products to sync across all sites for this batch
+      await Promise.all(syncPromises);
+
+      // console.log(`✅ Batch ${i / batchSize + 1} complete. Waiting ${delayMs}ms...`);
       console.log(`✅ Batch ${i / batchSize + 1} complete. Waiting ${delayMs}ms...`);
-
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
@@ -502,92 +499,191 @@ export async function BulkProductOutOfStock(req, res) {
 
 
 
-// ---------------- FIX BRAND HIERARCHY USING brandMap ----------------
+// Helper to classify product into 'watches' or 'shoes'
+function getProductDatabaseType(product) {
+    const cat = (product.catName || "").toLowerCase();
+    if (cat.includes("shoe") || cat.includes("sneaker") || cat.includes("kicks")) {
+        return "shoes";
+    }
+    // Default fallback to watches
+    return "watches"; 
+}
+
+
+// ---------------- FIX BRAND HIERARCHY USING brandMap (single-site) ----------------
+// export async function fixBrandsFromMap() {
+//   console.log("🔄 Fixing brands hierarchy from brandMap...");
+
+//   try {
+//     for (const [parentName, subbrands] of Object.entries(brandMap)) {
+//       let parentId = null;
+
+//       // 1️⃣ Ensure parent brand exists
+//       const parentSearchRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(parentName)}`, {
+//         headers: { Authorization: getAuthHeader() },
+//       });
+//       const parentData = await parentSearchRes.json();
+
+//       parentId = parentData.find(b => b.name.toLowerCase() === parentName.toLowerCase())?.id || null;
+
+//       if (!parentId) {
+//         const createParentRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand`, {
+//           method: "POST",
+//           headers: {
+//             Authorization: getAuthHeader(),
+//             "Content-Type": "application/json",
+//           },
+//           body: JSON.stringify({ name: parentName }),
+//         });
+//         const parent = await createParentRes.json();
+//         if (createParentRes.ok) {
+//           parentId = parent.id;
+//           console.log(`🆕 Created parent brand: ${parentName} (ID: ${parentId})`);
+//         } else {
+//           console.error("❌ Failed to create parent brand:", parent);
+//           continue;
+//         }
+//       } else {
+//         console.log(`✅ Parent brand exists: ${parentName} (ID: ${parentId})`);
+//       }
+
+//       // 2️⃣ Loop through subbrands
+//       for (const subName of subbrands) {
+//         try {
+//           const subSearchRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(subName)}`, {
+//             headers: { Authorization: getAuthHeader() },
+//           });
+//           const subData = await subSearchRes.json();
+
+//           // Find exact match
+//           const exactSub = subData.find(b => b.name.toLowerCase() === subName.toLowerCase());
+
+//           if (exactSub) {
+//             // Force update parent
+//             const updateRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand/${exactSub.id}`, {
+//               method: "PUT",
+//               headers: {
+//                 Authorization: getAuthHeader(),
+//                 "Content-Type": "application/json",
+//               },
+//               body: JSON.stringify({ parent: parentId }),
+//             });
+//             const updated = await updateRes.json();
+//             if (updateRes.ok) console.log(`🔄 Updated parent for subbrand '${subName}' → '${parentName}'`);
+//             else console.error("❌ Failed to update subbrand parent:", updated);
+//           } else {
+//             // Create subbrand under parent
+//             const createSubRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand`, {
+//               method: "POST",
+//               headers: {
+//                 Authorization: getAuthHeader(),
+//                 "Content-Type": "application/json",
+//               },
+//               body: JSON.stringify({ name: subName, parent: parentId }),
+//             });
+//             const newSub = await createSubRes.json();
+//             if (createSubRes.ok) console.log(`🆕 Created subbrand '${subName}' under '${parentName}'`);
+//             else console.error("❌ Failed to create subbrand:", newSub);
+//           }
+//         } catch (err) {
+//           console.error(`❌ Error processing subbrand '${subName}':`, err);
+//         }
+//       }
+//     }
+
+//     console.log("🎉 Brand hierarchy updated successfully!");
+//   } catch (err) {
+//     console.error("❌ Error fixing brands from brandMap:", err);
+//   }
+// }
+
+// ---------------- FIX BRAND HIERARCHY USING brandMap (multi-site) ----------------
+
 export async function fixBrandsFromMap() {
-  console.log("🔄 Fixing brands hierarchy from brandMap...");
+  console.log("🔄 Fixing brands hierarchy from brandMap across all sites...");
 
   try {
-    for (const [parentName, subbrands] of Object.entries(brandMap)) {
-      let parentId = null;
+    for (const site of WP_SITES) { // <-- ADDED LOOP FOR SITES
+      console.log(`\n🌐 Processing brands for site: ${site.name}`);
 
-      // 1️⃣ Ensure parent brand exists
-      const parentSearchRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(parentName)}`, {
-        headers: { Authorization: getAuthHeader() },
-      });
-      const parentData = await parentSearchRes.json();
+      for (const [parentName, subbrands] of Object.entries(brandMap)) {
+        let parentId = null;
 
-      parentId = parentData.find(b => b.name.toLowerCase() === parentName.toLowerCase())?.id || null;
-
-      if (!parentId) {
-        const createParentRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand`, {
-          method: "POST",
-          headers: {
-            Authorization: getAuthHeader(),
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name: parentName }),
+        // 1️⃣ Ensure parent brand exists
+        const parentSearchRes = await fetch(`${site.url}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(parentName)}`, {
+          headers: { Authorization: getAuthHeader(site) }, // <-- Pass site
         });
-        const parent = await createParentRes.json();
-        if (createParentRes.ok) {
-          parentId = parent.id;
-          console.log(`🆕 Created parent brand: ${parentName} (ID: ${parentId})`);
-        } else {
-          console.error("❌ Failed to create parent brand:", parent);
-          continue;
-        }
-      } else {
-        console.log(`✅ Parent brand exists: ${parentName} (ID: ${parentId})`);
-      }
+        const parentData = await parentSearchRes.json();
 
-      // 2️⃣ Loop through subbrands
-      for (const subName of subbrands) {
-        try {
-          const subSearchRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(subName)}`, {
-            headers: { Authorization: getAuthHeader() },
+        parentId = parentData.find(b => b.name.toLowerCase() === parentName.toLowerCase())?.id || null;
+
+        if (!parentId) {
+          const createParentRes = await fetch(`${site.url}/wp-json/wp/v2/product_brand`, {
+            method: "POST",
+            headers: {
+              Authorization: getAuthHeader(site), // <-- Pass site
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: parentName }),
           });
-          const subData = await subSearchRes.json();
-
-          // Find exact match
-          const exactSub = subData.find(b => b.name.toLowerCase() === subName.toLowerCase());
-
-          if (exactSub) {
-            // Force update parent
-            const updateRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand/${exactSub.id}`, {
-              method: "PUT",
-              headers: {
-                Authorization: getAuthHeader(),
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ parent: parentId }),
-            });
-            const updated = await updateRes.json();
-            if (updateRes.ok) console.log(`🔄 Updated parent for subbrand '${subName}' → '${parentName}'`);
-            else console.error("❌ Failed to update subbrand parent:", updated);
+          const parent = await createParentRes.json();
+          if (createParentRes.ok) {
+            parentId = parent.id;
+            console.log(`🆕 [${site.name}] Created parent brand: ${parentName} (ID: ${parentId})`);
           } else {
-            // Create subbrand under parent
-            const createSubRes = await fetch(`${WP_URL}/wp-json/wp/v2/product_brand`, {
-              method: "POST",
-              headers: {
-                Authorization: getAuthHeader(),
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ name: subName, parent: parentId }),
-            });
-            const newSub = await createSubRes.json();
-            if (createSubRes.ok) console.log(`🆕 Created subbrand '${subName}' under '${parentName}'`);
-            else console.error("❌ Failed to create subbrand:", newSub);
+            console.error(`❌ [${site.name}] Failed to create parent brand:`, parent);
+            continue;
           }
-        } catch (err) {
-          console.error(`❌ Error processing subbrand '${subName}':`, err);
+        } else {
+          console.log(`✅[${site.name}] Parent brand exists: ${parentName} (ID: ${parentId})`);
+        }
+
+        // 2️⃣ Loop through subbrands
+        for (const subName of subbrands) {
+          try {
+            const subSearchRes = await fetch(`${site.url}/wp-json/wp/v2/product_brand?search=${encodeURIComponent(subName)}`, {
+              headers: { Authorization: getAuthHeader(site) }, // <-- Pass site
+            });
+            const subData = await subSearchRes.json();
+
+            // Find exact match
+            const exactSub = subData.find(b => b.name.toLowerCase() === subName.toLowerCase());
+
+            if (exactSub) {
+              // Force update parent
+              const updateRes = await fetch(`${site.url}/wp-json/wp/v2/product_brand/${exactSub.id}`, {
+                method: "PUT",
+                headers: {
+                  Authorization: getAuthHeader(site), // <-- Pass site
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ parent: parentId }),
+              });
+              const updated = await updateRes.json();
+              if (updateRes.ok) console.log(`🔄 [${site.name}] Updated parent for subbrand '${subName}' → '${parentName}'`);
+              else console.error(`❌[${site.name}] Failed to update subbrand parent:`, updated);
+            } else {
+              // Create subbrand under parent
+              const createSubRes = await fetch(`${site.url}/wp-json/wp/v2/product_brand`, {
+                method: "POST",
+                headers: {
+                  Authorization: getAuthHeader(site), // <-- Pass site
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ name: subName, parent: parentId }),
+              });
+              const newSub = await createSubRes.json();
+              if (createSubRes.ok) console.log(`🆕[${site.name}] Created subbrand '${subName}' under '${parentName}'`);
+              else console.error(`❌ [${site.name}] Failed to create subbrand:`, newSub);
+            }
+          } catch (err) {
+            console.error(`❌ [${site.name}] Error processing subbrand '${subName}':`, err);
+          }
         }
       }
     }
-
-    console.log("🎉 Brand hierarchy updated successfully!");
+    console.log("🎉 Brand hierarchy updated successfully on all sites!");
   } catch (err) {
     console.error("❌ Error fixing brands from brandMap:", err);
   }
 }
-
-
-
