@@ -110,15 +110,15 @@ function gitAutoCommitAndPush() {
 // Main function to fetch data
 async function fetchDataa(singleUrl, DB) {
     console.log(Date.now());
-    // gitAutoCommitAndPush();
+    gitAutoCommitAndPush();
 
 
     console.log(singleUrl)
     console.log('singleUrl')
 
     const browser = await puppeteer.launch({
-        headless: false,
-        // executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+        headless: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
         defaultViewport: { width: 1080, height: 800 },
         args: [
             '--no-sandbox',
@@ -185,7 +185,7 @@ async function fetchDataa(singleUrl, DB) {
     await browser.close();
 
     // Call the function when your task is done
-    // gitAutoCommitAndPush();
+    gitAutoCommitAndPush();
     console.log("finished");
     console.log(Date.now());
     return allproducts;
