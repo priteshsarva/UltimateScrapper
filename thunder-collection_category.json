@@ -1,0 +1,74 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "category",
+    "collectionId": "d6138b79-19a2-428f-8a01-20cd2c7ca8cc",
+    "dateExported": "2025-01-21T15:20:32.160Z",
+    "version": "1.2",
+    "folders": [],
+    "requests": [
+        {
+            "_id": "19e6a9dc-b44b-47ed-a921-c7b886c1480f",
+            "colId": "d6138b79-19a2-428f-8a01-20cd2c7ca8cc",
+            "containerId": "",
+            "name": "http://localhost:5000/category/allresults",
+            "url": "http://localhost:5000/category/allresults",
+            "method": "GET",
+            "sortNum": 10000,
+            "created": "2025-01-15T02:21:30.205Z",
+            "modified": "2025-01-15T02:21:30.205Z",
+            "headers": []
+        },
+        {
+            "_id": "abb224fd-fb85-43d5-8548-76d690a5ea90",
+            "colId": "d6138b79-19a2-428f-8a01-20cd2c7ca8cc",
+            "containerId": "",
+            "name": "http://localhost:5000/category/add",
+            "url": "http://localhost:5000/category/add",
+            "method": "POST",
+            "sortNum": 20000,
+            "created": "2025-01-15T02:28:11.685Z",
+            "modified": "2025-01-15T02:56:17.114Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"catName\":\"slippers\",\n  \"catImg\":\"shoes.js\",\n  \"catSlug\":\"/slipperssqq3\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "117e3ba0-bc61-4c2f-8e39-81aa0a061a62",
+            "colId": "d6138b79-19a2-428f-8a01-20cd2c7ca8cc",
+            "containerId": "",
+            "name": "http://localhost:5000/category/add Copy",
+            "url": "http://localhost:5000/category/update",
+            "method": "POST",
+            "sortNum": 30000,
+            "created": "2025-01-15T02:56:40.130Z",
+            "modified": "2025-01-15T03:00:24.653Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"catId\":1,\n  \"catName\":\"slippersdsd\",\n  \"catImg\":\"shoes.js\",\n  \"catSlug\":\"/slippers\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "9d4def35-c8dc-46e0-836c-7aa74fd71c41",
+            "colId": "d6138b79-19a2-428f-8a01-20cd2c7ca8cc",
+            "containerId": "",
+            "name": "http://localhost:5000/category/add Copy Copy",
+            "url": "http://localhost:5000/category/delete",
+            "method": "DELETE",
+            "sortNum": 40000,
+            "created": "2025-01-15T03:03:20.699Z",
+            "modified": "2025-01-15T03:03:39.022Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"catId\":1\n}",
+                "form": []
+            }
+        }
+    ],
+    "ref": "Zs9fhofazwutWi0tomQoEPbQH7TVFM-tECE8h7CkMCj_V1vTYllXzkTL7XZQA2BlGDJggq6dkwJalnLKvjNG1Q"
+}
