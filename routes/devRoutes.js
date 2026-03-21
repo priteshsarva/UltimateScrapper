@@ -18,7 +18,7 @@ router.get('/update-stale-sizes', async (req, res) => {
 
         // 2. Fetch the IDs of the stale products so we can return them in the JSON response
         // Using CAST to safely handle timestamps stored as TEXT or INTEGER
-        const selectSQL = `SELECT productId FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) < ?`;
+        const selectSQL = `SELECT productId FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) < ? OR sizeName = '[]'`;
         
         const rows = await new Promise((resolve, reject) => {
             db.all(selectSQL, [cutoff], (err, rows) => {
@@ -45,6 +45,7 @@ router.get('/update-stale-sizes', async (req, res) => {
                 availability = 0, 
                 productLastUpdated = ? 
             WHERE CAST(productLastUpdated AS INTEGER) < ?
+            OR sizeName = '[]'
         `;
 
         const changes = await new Promise((resolve, reject) => {

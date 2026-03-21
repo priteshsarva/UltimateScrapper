@@ -6,9 +6,7 @@ export async function getClientData(clientConfig, queryType, queryParams) {
     let dbArrays = [];
 
     for (const rule of clientConfig.access) {
-        console.log("1");
         
-        console.log(rule.database);
         
         const db = await dbManager.getDb(rule.database);
         let sql = queryParams.sql;
