@@ -110,7 +110,6 @@ function gitAutoCommitAndPush() {
 // Main function to fetch data
 async function fetchDataa(singleUrl, DB) {
     console.log(Date.now());
-    gitAutoCommitAndPush();
 
 
     console.log(singleUrl)
@@ -185,7 +184,6 @@ async function fetchDataa(singleUrl, DB) {
     await browser.close();
 
     // Call the function when your task is done
-    gitAutoCommitAndPush();
     console.log("finished");
     console.log(Date.now());
     return allproducts;
