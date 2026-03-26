@@ -54,7 +54,7 @@ export async function syncProductToAllSites(product, productId = null) {
   // 3. Only sync to the filtered list of eligible sites!
   const syncPromises = eligibleSites.map((site) => {
     console.log(site);
-    upsertProductSafe(product, site, productId)
+    return upsertProductSafe(product, site, productId)
   });
 
   await Promise.all(syncPromises);

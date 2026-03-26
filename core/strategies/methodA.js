@@ -391,7 +391,6 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
                     console.log("Skipped upsertProductSafe due to WordPress flag. ProductID = " + productId);
                 } else {
                     console.log("upsertProductSafe with id" + productId)
-                    // temporary
                     await syncProductToAllSites(eachproduct, productId);
                 }
                 console.log("From Each Product");
