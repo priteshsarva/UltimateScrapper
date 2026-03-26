@@ -11,13 +11,13 @@ const WP_CONSUMER_KEY = process.env.WP_CONSUMER_KEY;
 const WP_CONSUMER_SECRET = process.env.WP_CONSUMER_SECRET;
 
 const WP_SITES = [
-  {
-    domain: "timekeepers.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
-    name: "TimesKeepers",
-    url: process.env.WP_URL,
-    user: process.env.WP_USER,
-    password: process.env.WP_APP_PASSWORD,
-  },
+  // {
+  //   domain: "timekeepers.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
+  //   name: "TimesKeepers",
+  //   url: process.env.WP_URL,
+  //   user: process.env.WP_USER,
+  //   password: process.env.WP_APP_PASSWORD,
+  // },
   {
     domain: "stylenova.co.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
     name: "stylenova",
@@ -52,9 +52,10 @@ export async function syncProductToAllSites(product, productId = null) {
   console.log(`🚀 Syncing[${databaseType}] product '${product.productName}' to ${eligibleSites.length} site(s): ${eligibleSites.map(s => s.name).join(", ")}`);
 
   // 3. Only sync to the filtered list of eligible sites!
-  const syncPromises = eligibleSites.map((site) =>
+  const syncPromises = eligibleSites.map((site) => {
+    console.log(site);
     upsertProductSafe(product, site, productId)
-  );
+  });
 
   await Promise.all(syncPromises);
 }
@@ -213,6 +214,8 @@ export async function upsertProductSafe(product, site, productId = null) {
 
     let method = "POST";
     let endpoint = `${site.url}/wp-json/wc/v3/products`;
+    console.log(endpoint);
+
 
     if (existing) {
       endpoint = `${site.url}/wp-json/wc/v3/products/${existing.id}`;
@@ -511,10 +514,10 @@ export async function BulkProductOutOfStock(req, res) {
 
       // 2. Mark old items as out of stock (and clear sizes if it's shoes)
       if (dbName === 'shoes') {
-          // 👟 SPECIAL SHOES LOGIC: Clear sizes AND set out of stock
-          await new Promise((resolve, reject) => {
-            db.run(
-              `UPDATE PRODUCTS 
+        // 👟 SPECIAL SHOES LOGIC: Clear sizes AND set out of stock
+        await new Promise((resolve, reject) => {
+          db.run(
+            `UPDATE PRODUCTS 
                SET sizeName = '[]', 
                    availability = 0, 
                    productLastUpdated = ?
@@ -523,40 +526,40 @@ export async function BulkProductOutOfStock(req, res) {
                   availability = 1 OR availability = '1' OR availability = true OR availability = 'true'
                   OR sizeName != '[]'
                )`,
-              [now, threeDaysAgo],
-              function (err) {
-                if (err) return reject(err);
-                console.log(`[${dbName}] Stale shoes marked OOS and sizes cleared: ${this.changes}`);
-                resolve(this.changes);
-              }
-            );
-          });
+            [now, threeDaysAgo],
+            function (err) {
+              if (err) return reject(err);
+              console.log(`[${dbName}] Stale shoes marked OOS and sizes cleared: ${this.changes}`);
+              resolve(this.changes);
+            }
+          );
+        });
       } else {
-          // ⌚ NORMAL LOGIC (Watches, etc.): Just set out of stock
-          await new Promise((resolve, reject) => {
-            db.run(
-              `UPDATE PRODUCTS 
+        // ⌚ NORMAL LOGIC (Watches, etc.): Just set out of stock
+        await new Promise((resolve, reject) => {
+          db.run(
+            `UPDATE PRODUCTS 
                SET availability = 0, 
                    productLastUpdated = ?
                WHERE CAST(productLastUpdated AS INTEGER) <= ?
-               AND (availability = 1 OR availability = '1' OR availability = true OR availability = 'true')`,[now, threeDaysAgo],
-              function (err) {
-                if (err) return reject(err);
-                console.log(`[${dbName}] Rows marked out of stock: ${this.changes}`);
-                resolve(this.changes);
-              }
-            );
-          });
+               AND (availability = 1 OR availability = '1' OR availability = true OR availability = 'true')`, [now, threeDaysAgo],
+            function (err) {
+              if (err) return reject(err);
+              console.log(`[${dbName}] Rows marked out of stock: ${this.changes}`);
+              resolve(this.changes);
+            }
+          );
+        });
       }
 
       // 3. Fetch the recently updated items (common for all DBs)
       const rows = await new Promise((resolve, reject) => {
         db.all(
-          "SELECT * FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;",[twentyMinsAgo, now],
+          "SELECT * FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;", [twentyMinsAgo, now],
           (err, result) => {
             if (err) return reject(err);
             // Attach the dbName so syncProductToAllSites knows what to do with it
-            const mappedRows = (result ||[]).map(r => ({ ...r, dbName }));
+            const mappedRows = (result || []).map(r => ({ ...r, dbName }));
             resolve(mappedRows);
           }
         );
