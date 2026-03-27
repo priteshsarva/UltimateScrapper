@@ -12,13 +12,13 @@ const WP_CONSUMER_KEY = process.env.WP_CONSUMER_KEY;
 const WP_CONSUMER_SECRET = process.env.WP_CONSUMER_SECRET;
 
 const WP_SITES = [
-  // {
-  //   domain: "timekeepers.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
-  //   name: "TimesKeepers",
-  //   url: process.env.WP_URL,
-  //   user: process.env.WP_USER,
-  //   password: process.env.WP_APP_PASSWORD,
-  // },
+  {
+    domain: "timekeepers.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
+    name: "TimesKeepers",
+    url: process.env.WP_URL,
+    user: process.env.WP_USER,
+    password: process.env.WP_APP_PASSWORD,
+  },
   {
     domain: "stylenova.co.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
     name: "stylenova",
