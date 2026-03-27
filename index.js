@@ -191,16 +191,15 @@ app.get('/devproductupdates', async (req, res) => {
     try {
         // fetchDataa(baseUrls);
         gitAutoCommitAndPush();
+        res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
 
         for (const site of SITES_REGISTRY) {
             console.log(site.searchKey);
-            await executeScraper(site.searchKey); // ✅ correct
-            // Execute the rotator
+            // Execute the rotator and this also executeScraper
             await runRotator();
         }
         gitAutoCommitAndPush();
 
-        res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
     } catch (error) {
         console.error('Error:', error.message);
         res.status(500).json({ status: 500, message: 'Internal Server Error' });

@@ -3,7 +3,7 @@ import { dbManager } from './models/dbManager.js';
 
 const MIGRATION_CONFIG = [
     { category: 'shoes', oldDbPath: './old_shoes.db' },
-    { category: 'watches', oldDbPath: './old_watch.db' }
+    // { category: 'watches', oldDbPath: './old_watch.db' }
 ];
 
 async function startMigration() {

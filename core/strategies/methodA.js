@@ -113,8 +113,6 @@ async function fetchDataa(singleUrl, DB) {
     // gitAutoCommitAndPush();
 
 
-    console.log(singleUrl)
-    console.log('singleUrl')
 
     const browser = await puppeteer.launch({
         headless: true,
