@@ -5,6 +5,7 @@ import { DB } from "../models/connect.js";
 import { brandMap } from "../services/updateProductCategoryAndBrand.js";
 import { dbManager } from '../models/dbManager.js';
 import { CLIENT_CONFIGS } from '../config/clients.js';
+import { SITES_REGISTRY } from '../config/sites.js';
 
 const WP_URL = process.env.WP_URL;
 const WP_CONSUMER_KEY = process.env.WP_CONSUMER_KEY;
@@ -616,11 +617,20 @@ export async function BulkProductOutOfStock(req, res) {
 
 // Helper to classify product into 'watches' or 'shoes'
 function getProductDatabaseType(product) {
-  const cat = (product.catName || "").toLowerCase();
-  if (cat.includes("shoe") || cat.includes("sneaker") || cat.includes("kicks")) {
-    return "shoes";
+  const fetchedFrom = product.productFetchedFrom || "";
+
+  // 1. Find the exact site in your registry that matches the scraped URL
+  const matchedSite = SITES_REGISTRY.find(site => 
+      fetchedFrom.includes(site.base_url) || fetchedFrom.includes(site.searchKey)
+  );
+
+  // 2. If a match is found, return its exact category ("shoes", "watches", etc.)
+  if (matchedSite && matchedSite.category) {
+      return matchedSite.category;
   }
-  // Default fallback to watches
+
+  // 3. Fallback just in case a URL isn't in the registry yet
+  console.warn(`⚠️ [Router Warning] Unknown origin URL: ${fetchedFrom}. Defaulting to 'watches'.`);
   return "watches";
 }
 
