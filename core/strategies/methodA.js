@@ -415,7 +415,7 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
     // console.log([[products.length , url]]);
 
     // return [[products.length , url]];
-    console.log(products, `1`);
+    // console.log(products, `1`);
 
     return products;
 }
