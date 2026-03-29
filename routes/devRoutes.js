@@ -1,7 +1,7 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
 import { bulkSafeSyncProducts, BulkProductOutOfStock } from "../core/wpBulkSafeSync.js";
-import { CLIENT_CONFIGS } from '../config/clientsConfig.js'; 
+import { CLIENT_CONFIGS } from '../config/clients.js'; 
 
 const router = express.Router();
 
