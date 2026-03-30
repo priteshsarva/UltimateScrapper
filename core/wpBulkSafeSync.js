@@ -215,7 +215,7 @@ export async function upsertProductSafe(product, site, productId = null) {
 
     let method = "POST";
     let endpoint = `${site.url}/wp-json/wc/v3/products`;
-    console.log(endpoint);
+    // console.log(endpoint);
 
 
     if (existing) {
@@ -279,7 +279,7 @@ export async function upsertProductSafe(product, site, productId = null) {
 
     // ✅ Add price, category & brand only for new products
     // if (!existing) { activate after correction finesh
-    if (!existing) {
+    if (existing) {
       payload.regular_price = regularPrice;
       payload.sku,
         payload.meta_data.push({
@@ -340,64 +340,155 @@ export async function upsertProductSafe(product, site, productId = null) {
 
 
 // ---------------- BULK SYNC ----------------
+// export async function bulkSafeSyncProducts(req, res) {
+//   console.log("🔄 Starting bulk sync (safe mode) from local DB → WooCommerce...");
+
+//   try {
+
+
+//     const rows = await new Promise(async (resolve, reject) => {
+//       const currentTimestamp = Date.now(); // Current timestamp in milliseconds
+//       // const oneDayAgo = currentTimestamp - 100 * 60 * 60 * 1000; // 24 hours ago in milliseconds
+//       const twelveAndHalfHoursAgo = currentTimestamp - 24 * 60 * 60 * 1000; // 12.5 hours ago in milliseconds
+
+
+//       DB.all(
+//         // "SELECT * FROM PRODUCTS WHERE productLastUpdated >= ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;",
+//         "SELECT * FROM PRODUCTS WHERE productId = 56245",
+//         // "UPDATE PRODUCTS SET availability = 0 WHERE productFetchedFrom IN (    'https://watchhouse11.cartpe.in/',    'https://saenterprise.cartpe.in/',    'https://jilaniwatches11.cartpe.in/',    'https://thetimekeepers.cartpe.in/')",
+//         // "SELECT * FROM PRODUCTS WHERE productFetchedFrom IN (    'https://watchhouse11.cartpe.in/',    'https://saenterprise.cartpe.in/',    'https://jilaniwatches11.cartpe.in/',    'https://thetimekeepers.cartpe.in/')",
+
+
+//         // [oneDayAgo],
+//         // [twelveAndHalfHoursAgo],
+//         (err, result) => {
+//           if (err) {
+//             reject(err);
+//           } else {
+//             resolve(result);
+//           }
+//         }
+//       );
+
+
+//     });
+
+//     console.log(`📦 Found ${rows.length} products to sync.`);
+
+//     const batchSize = 10;
+//     const delayMs = 250;
+
+//     for (let i = 0; i < rows.length; i += batchSize) {
+//       const batch = rows.slice(i, i + batchSize);
+//       // console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products)...`);
+//       console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products) across ${WP_SITES.length} sites...`);
+
+//       // await Promise.all(batch.map((p) => upsertProductSafe(p)));
+
+//       const syncPromises = batch.flatMap((p) =>
+//         WP_SITES.map((site) => upsertProductSafe(p, site))
+//       );
+//       await Promise.all(syncPromises);
+
+//       console.log(`✅ Batch ${i / batchSize + 1} complete. Waiting ${delayMs}ms...`);
+//       await new Promise((resolve) => setTimeout(resolve, delayMs));
+//     }
+
+//     console.log("🎉 Bulk safe sync complete!");
+//     res.send({ status: "success", message: "Bulk safe sync complete" });
+//     // res.json(rows);
+
+//   } catch (err) {
+//     console.error("❌ DB error:", err);
+//     res.status(500).send({ error: err.message });
+//   }
+// }
+
 export async function bulkSafeSyncProducts(req, res) {
   console.log("🔄 Starting bulk sync (safe mode) from local DB → WooCommerce...");
 
   try {
+    const currentTimestamp = Date.now();
+    // 24 hours ago in milliseconds (matches your variable math)
+    const syncCutoffTime = currentTimestamp - 24 * 60 * 60 * 1000;
 
+    // 1. We check ALL your active databases
+    const databasesToCheck = ['watches', 'shoes'];
+    let allRowsToSync = [];
 
-    const rows = await new Promise((resolve, reject) => {
-      const currentTimestamp = Date.now(); // Current timestamp in milliseconds
-      // const oneDayAgo = currentTimestamp - 100 * 60 * 60 * 1000; // 24 hours ago in milliseconds
-      const twelveAndHalfHoursAgo = currentTimestamp - 24 * 60 * 60 * 1000; // 12.5 hours ago in milliseconds
+    // 2. Fetch recently updated products from all databases
+    for (const dbName of databasesToCheck) {
+      const db = await dbManager.getDb(dbName);
+      console.log(`📦 Fetching recently updated products from local DB: ${dbName}`);
 
+      const rows = await new Promise((resolve, reject) => {
+        // Use CAST to ensure timestamps are treated as numbers correctly
+        // const sql = `
+        //   SELECT * FROM PRODUCTS 
+        //   WHERE CAST(productLastUpdated AS INTEGER) >= ? 
+        //   ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;
+        // `;
 
-      DB.all(
-        "SELECT * FROM PRODUCTS WHERE productLastUpdated >= ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;",
-        // "UPDATE PRODUCTS SET availability = 0 WHERE productFetchedFrom IN (    'https://watchhouse11.cartpe.in/',    'https://saenterprise.cartpe.in/',    'https://jilaniwatches11.cartpe.in/',    'https://thetimekeepers.cartpe.in/')",
-        // "SELECT * FROM PRODUCTS WHERE productFetchedFrom IN (    'https://watchhouse11.cartpe.in/',    'https://saenterprise.cartpe.in/',    'https://jilaniwatches11.cartpe.in/',    'https://thetimekeepers.cartpe.in/')",
+        const sql = `SELECT * FROM PRODUCTS WHERE availability = 1 
+           OR availability = '1'
+           OR availability = TRUE
+           OR availability = 'true'
+           OR availability = 'TRUE' ORDER BY productDateCreation DESC`;
 
+        db.all(sql,
+          //  [syncCutoffTime],
+          (err, result) => {
+            if (err) return reject(err);
+            // Attach dbName to each row just in case
+            const mappedRows = (result || []).map(r => ({ ...r, dbName }));
+            resolve(mappedRows);
+          });
+      });
 
-        // [oneDayAgo],
-        [twelveAndHalfHoursAgo],
-        (err, result) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(result);
-          }
-        }
-      );
-    });
+      allRowsToSync.push(...rows);
+    }
 
-    console.log(`📦 Found ${rows.length} products to sync.`);
+    console.log(`📦 Found a total of ${allRowsToSync.length} products to sync.`);
+
+    // 3. Respond immediately so the API doesn't time out (504 Error on Render)
+    if (res && !res.headersSent) {
+      res.json({
+        status: "success",
+        message: `Bulk safe sync started in the background. Syncing ${allRowsToSync.length} products.`,
+        count: allRowsToSync.length
+      });
+    }
+
+    if (allRowsToSync.length === 0) {
+      console.log("🎉 No products needed syncing.");
+      return;
+    }
 
     const batchSize = 10;
     const delayMs = 250;
 
-    for (let i = 0; i < rows.length; i += batchSize) {
-      const batch = rows.slice(i, i + batchSize);
-      // console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products)...`);
-      console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products) across ${WP_SITES.length} sites...`);
+    // 4. Process in batches using the Smart Router
+    for (let i = 0; i < allRowsToSync.length; i += batchSize) {
+      const batch = allRowsToSync.slice(i, i + batchSize);
+      console.log(`🚀 Syncing batch ${i / batchSize + 1} (${batch.length} products) using Smart Router...`);
 
-      // await Promise.all(batch.map((p) => upsertProductSafe(p)));
+      // 👇 Replaced the old WP_SITES.flatMap loop with your smart router!
+      const syncPromises = batch.map((p) => syncProductToAllSites(p, p.productId));
 
-      const syncPromises = batch.flatMap((p) =>
-        WP_SITES.map((site) => upsertProductSafe(p, site))
-      );
+      // Wait for all products in this batch to sync
       await Promise.all(syncPromises);
 
       console.log(`✅ Batch ${i / batchSize + 1} complete. Waiting ${delayMs}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
-    console.log("🎉 Bulk safe sync complete!");
-    res.send({ status: "success", message: "Bulk safe sync complete" });
-    // res.json(rows);
+    console.log("🎉 Bulk safe sync completely finished!");
 
   } catch (err) {
     console.error("❌ DB error:", err);
-    res.status(500).send({ error: err.message });
+    if (res && !res.headersSent) {
+      res.status(500).send({ error: err.message });
+    }
   }
 }
 
@@ -620,13 +711,13 @@ function getProductDatabaseType(product) {
   const fetchedFrom = product.productFetchedFrom || "";
 
   // 1. Find the exact site in your registry that matches the scraped URL
-  const matchedSite = SITES_REGISTRY.find(site => 
-      fetchedFrom.includes(site.base_url) || fetchedFrom.includes(site.searchKey)
+  const matchedSite = SITES_REGISTRY.find(site =>
+    fetchedFrom.includes(site.base_url) || fetchedFrom.includes(site.searchKey)
   );
 
   // 2. If a match is found, return its exact category ("shoes", "watches", etc.)
   if (matchedSite && matchedSite.category) {
-      return matchedSite.category;
+    return matchedSite.category;
   }
 
   // 3. Fallback just in case a URL isn't in the registry yet

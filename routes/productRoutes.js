@@ -234,6 +234,8 @@ router.get('/search', async (req, res) => {
 router.get('/allresults', async (req, res) => {
     // REMOVE the ORDER BY from here. 
     // getClientData handles sorting automatically for you.
+    // const sql = `SELECT * FROM PRODUCTS WHERE availability = 1 OR availability = '1' OR availability = TRUE OR availability = 'true' OR availability = 'TRUE' ORDER BY productDateCreation DESC`;
+
     const sql = `SELECT * FROM PRODUCTS ORDER BY productDateCreation DESC`;
 
     try {
