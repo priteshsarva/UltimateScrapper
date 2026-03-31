@@ -27,7 +27,7 @@ class DbManager {
             const db = new sqlite3.Database(dbPath, async (err) => {
                 if (err) return reject(err);
 
-                db.run("PRAGMA journal_mode = WAL"); // Write-Ahead Logging (Allows parallel read/write)
+                db.run("PRAGMA journal_mode = DELETE"); // Write-Ahead Logging (Allows parallel read/write)
                 db.run("PRAGMA busy_timeout = 5000"); // Wait up to 5 seconds if DB is busy
                 try {
                     // Enable Foreign Keys
