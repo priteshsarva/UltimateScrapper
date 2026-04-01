@@ -1,9 +1,11 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock } from "../core/wpBulkSafeSync.js";
-import { CLIENT_CONFIGS } from '../config/clients.js'; 
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES } from "../core/wpBulkSafeSync.js";
+import { CLIENT_CONFIGS } from '../config/clients.js';
 
 const router = express.Router();
+
+
 
 // No tenantIdentify middleware needed here
 router.get('/update-stale-sizes', async (req, res) => {
@@ -20,11 +22,11 @@ router.get('/update-stale-sizes', async (req, res) => {
         // 2. Fetch the IDs of the stale products so we can return them in the JSON response
         // Using CAST to safely handle timestamps stored as TEXT or INTEGER
         const selectSQL = `SELECT productId FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) < ? OR sizeName = '[]'`;
-        
+
         const rows = await new Promise((resolve, reject) => {
             db.all(selectSQL, [cutoff], (err, rows) => {
                 if (err) return reject(err);
-                resolve(rows ||[]);
+                resolve(rows || []);
             });
         });
 
@@ -32,9 +34,9 @@ router.get('/update-stale-sizes', async (req, res) => {
         console.log(`Found ${staleIds.length} stale products to update in 'shoes' DB`);
 
         if (staleIds.length === 0) {
-            return res.status(200).json({ 
+            return res.status(200).json({
                 message: 'No outdated products found.',
-                updatedCount: 0 
+                updatedCount: 0
             });
         }
 
@@ -50,31 +52,87 @@ router.get('/update-stale-sizes', async (req, res) => {
         `;
 
         const changes = await new Promise((resolve, reject) => {
-            db.run(updateSQL,[now, cutoff], function(err) {
+            db.run(updateSQL, [now, cutoff], function (err) {
                 if (err) return reject(err);
                 resolve(this.changes);
             });
         });
 
         console.log(`Successfully updated ${changes} products in 'shoes' DB`);
-        
+
         // 4. Send the successful response
-        res.status(200).json({ 
-            message: 'Update completed', 
+        res.status(200).json({
+            message: 'Update completed',
             updatedCount: changes,
             totalStale: staleIds.length,
-            staleIds: staleIds 
+            staleIds: staleIds
         });
 
     } catch (error) {
         console.error('Update stale sizes error:', error);
-        res.status(500).json({ 
-            error: 'Failed to update stale sizes', 
-            details: error.message 
+        res.status(500).json({
+            error: 'Failed to update stale sizes',
+            details: error.message
         });
     }
 });
 
+router.get("/getProductBydetails", async (req, res) => {
+
+    //exaple of calling this
+    ///http://localhost:3002/dev/getProductBydetails?property=productFetchedFrom&value=shoe-house-1&compare=contains
+
+
+
+    try {
+        // Grab property, value, and compare from the URL
+        const { property, value } = req.query;
+        let compare = req.query.compare || '='; // Default to Exact Match
+
+        // Make it user-friendly: if they type 'contains', change it to SQL 'LIKE'
+        if (compare.toLowerCase() === 'contains') {
+            compare = 'LIKE';
+        }
+
+        if (!property || !value) {
+            return res.status(400).json({ 
+                error: "Please provide 'property' and 'value'. Optional: '&compare=contains'" 
+            });
+        }
+
+        console.log(`🔍 Searching across all sites: [${property}] ${compare}[${value}]`);
+
+        // 👇 Pass 'compare' into the helper function
+        const fetchPromises = WP_SITES.map(async (site) => {
+            const products = await getProductBydetails(property, value, compare, site);
+            
+            return {
+                siteName: site.name,
+                matchCount: products.length,
+                products: products.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    sku: p.sku,
+                    price: p.price,
+                    status: p.status,
+                    permalink: p.permalink
+                }))
+            };
+        });
+
+        const allResults = await Promise.all(fetchPromises);
+
+        res.status(200).json({
+            searchQuery: { property, compareRule: compare, value },
+            totalSitesSearched: WP_SITES.length,
+            results: allResults
+        });
+
+    } catch (error) {
+        console.error("❌ Error in route:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 router.get('/checkpoint', async (req, res) => {
     try {
@@ -94,7 +152,7 @@ router.get('/checkpoint', async (req, res) => {
         // 2. Loop through every database and force the WAL file to merge
         for (const dbName of dbList) {
             console.log(`⏳ Merging WAL file into main DB for: ${dbName}.db...`);
-            
+
             const db = await dbManager.getDb(dbName);
 
             // Run the TRUNCATE checkpoint command for this specific database
@@ -107,7 +165,7 @@ router.get('/checkpoint', async (req, res) => {
                     resolve();
                 });
             });
-            
+
             results[dbName] = "Merged and Truncated successfully ✅";
             console.log(`✅ ${dbName}.db is now fully merged and safe!`);
         }
@@ -121,9 +179,9 @@ router.get('/checkpoint', async (req, res) => {
 
     } catch (error) {
         console.error('Checkpoint error:', error);
-        res.status(500).json({ 
-            error: 'Failed to run database checkpoint', 
-            details: error.message 
+        res.status(500).json({
+            error: 'Failed to run database checkpoint',
+            details: error.message
         });
     }
 });
@@ -131,5 +189,7 @@ router.get('/checkpoint', async (req, res) => {
 
 router.get("/bulkSafeSyncProducts", bulkSafeSyncProducts);
 router.get("/bulkProductOutOfStock", BulkProductOutOfStock);
+
+
 
 export default router;

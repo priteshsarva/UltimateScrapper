@@ -6,12 +6,13 @@ import { brandMap } from "../services/updateProductCategoryAndBrand.js";
 import { dbManager } from '../models/dbManager.js';
 import { CLIENT_CONFIGS } from '../config/clients.js';
 import { SITES_REGISTRY } from '../config/sites.js';
+import { log } from "console";
 
 const WP_URL = process.env.WP_URL;
 const WP_CONSUMER_KEY = process.env.WP_CONSUMER_KEY;
 const WP_CONSUMER_SECRET = process.env.WP_CONSUMER_SECRET;
 
-const WP_SITES = [
+export const WP_SITES = [
   {
     domain: "timekeepers.in", // <-- MUST MATCH THE KEY IN CLIENT_CONFIGS
     name: "TimesKeepers",
@@ -150,6 +151,38 @@ async function getProductBySKU(sku, site) {
   }
 }
 
+export async function getProductBydetails(property, value, compare, site) {
+  try {
+    let endpoint = `${site.url}/wp-json/wc/v3/products`;
+
+    const standardFields =['sku', 'status', 'slug', 'category', 'tag'];
+    
+    if (standardFields.includes(property.toLowerCase())) {
+        // Standard WooCommerce search
+        endpoint += `?${property}=${encodeURIComponent(value)}`;
+    } else {
+        // Custom Meta Field! Now includes the 'meta_compare' parameter
+        endpoint += `?meta_key=${encodeURIComponent(property)}&meta_value=${encodeURIComponent(value)}&meta_compare=${encodeURIComponent(compare)}`;
+    }
+console.log(endpoint);
+
+    const res = await fetch(endpoint, {
+      headers: { Authorization: getAuthHeader(site) },
+    });
+
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      console.error(`❌ WooCommerce did not return JSON on ${site.name}`);
+      return[];
+    }
+
+    const data = await res.json();
+    return Array.isArray(data) ? data :[]; 
+  } catch (err) {
+    console.error(`❌ Error checking product on ${site.name}:`, err);
+    return[];
+  }
+}
 
 
 async function getOrCreateBrand(brandName, site) {
