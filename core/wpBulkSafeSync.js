@@ -164,7 +164,6 @@ export async function getProductBydetails(property, value, compare, site) {
         // Custom Meta Field! Now includes the 'meta_compare' parameter
         endpoint += `?meta_key=${encodeURIComponent(property)}&meta_value=${encodeURIComponent(value)}&meta_compare=${encodeURIComponent(compare)}`;
     }
-console.log(endpoint);
 
     const res = await fetch(endpoint, {
       headers: { Authorization: getAuthHeader(site) },
@@ -172,15 +171,38 @@ console.log(endpoint);
 
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-      console.error(`❌ WooCommerce did not return JSON on ${site.name}`);
+      console.error('❌ WooCommerce did not return JSON on ', site.name);
       return[];
     }
 
     const data = await res.json();
     return Array.isArray(data) ? data :[]; 
   } catch (err) {
-    console.error(`❌ Error checking product on ${site.name}:`, err);
+    console.error('❌ Error checking product on '+site.name + ':', err);
     return[];
+  }
+}
+
+export async function deleteProduct(productId, site) {
+  try {
+    // Note: ?force=true skips the trash bin and deletes it permanently
+    const endpoint = `${site.url}/wp-json/wc/v3/products/${productId}?force=true`;
+    
+    const res = await fetch(endpoint, {
+      method: "DELETE",
+      headers: { Authorization: getAuthHeader(site) },
+    });
+
+    if (res.ok) {
+        console.log(`🗑️ [${site.name}] Deleted product ID: ${productId}`);
+        return true;
+    } else {
+        console.error(`❌ [${site.name}] Failed to delete product ID: ${productId}`);
+        return false;
+    }
+  } catch (err) {
+    console.error(`❌[${site.name}] Error deleting product:`, err);
+    return false;
   }
 }
 

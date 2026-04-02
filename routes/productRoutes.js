@@ -247,8 +247,6 @@ router.get('/allresults', async (req, res) => {
 });
 
 
-
-
 /**
  * Endpoint: /product/firstdata
  */

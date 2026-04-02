@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct } from "../core/wpBulkSafeSync.js";
 import { CLIENT_CONFIGS } from '../config/clients.js';
 
 const router = express.Router();
@@ -77,17 +77,79 @@ router.get('/update-stale-sizes', async (req, res) => {
     }
 });
 
+// router.get("/getProductBydetails", async (req, res) => {
+
+//     //exaple of calling this
+//     ///http://localhost:3002/dev/getProductBydetails?property=productFetchedFrom&value=shoe-house-1&compare=contains
+
+
+
+//     try {
+//         // Grab property, value, and compare from the URL
+//         const { property, value } = req.query;
+//         let compare = req.query.compare || '='; // Default to Exact Match
+
+//         // Make it user-friendly: if they type 'contains', change it to SQL 'LIKE'
+//         if (compare.toLowerCase() === 'contains') {
+//             compare = 'LIKE';
+//         }
+
+//         if (!property || !value) {
+//             return res.status(400).json({
+//                 error: "Please provide 'property' and 'value'. Optional: '&compare=contains'"
+//             });
+//         }
+
+//         console.log(`🔍 Searching across all sites: [${property}] ${compare}[${value}]`);
+
+//         // 👇 Pass 'compare' into the helper function
+//         const fetchPromises = WP_SITES.map(async (site) => {
+//             const products = await getProductBydetails(property, value, compare, site);
+
+//             // return {
+//             //     siteName: site.name,
+//             //     matchCount: products.length,
+//             //     products: products.map(p => ({
+//             //         id: p.id,
+//             //         name: p.name,
+//             //         sku: p.sku,
+//             //         price: p.price,
+//             //         status: p.status,
+//             //         permalink: p.permalink
+//             //     }))
+//             // };
+
+//             return {
+//                 siteName: site.name,
+//                 matchCount: products.length,
+//                 products: products.map(p => ({
+//                     ...p
+//                 }))
+//             };
+//         });
+
+//         const allResults = await Promise.all(fetchPromises);
+
+//         res.status(200).json({
+//             searchQuery: { property, compareRule: compare, value },
+//             totalSitesSearched: WP_SITES.length,
+//             results: allResults
+//         });
+
+//     } catch (error) {
+//         console.error("❌ Error in route:", error);
+//         res.status(500).json({ error: "Internal server error" });
+//     }
+// });
+
 router.get("/getProductBydetails", async (req, res) => {
-
-    //exaple of calling this
-    ///http://localhost:3002/dev/getProductBydetails?property=productFetchedFrom&value=shoe-house-1&compare=contains
-
-
-
     try {
-        // Grab property, value, and compare from the URL
-        const { property, value } = req.query;
+        // Grab property, value, compare, siteName, and delete from the URL
+        const { property, value, siteName } = req.query;
         let compare = req.query.compare || '='; // Default to Exact Match
+
+        // Check if user requested deletion (e.g., ?delete=true)
+        const shouldDelete = req.query.delete === 'true';
 
         // Make it user-friendly: if they type 'contains', change it to SQL 'LIKE'
         if (compare.toLowerCase() === 'contains') {
@@ -95,20 +157,58 @@ router.get("/getProductBydetails", async (req, res) => {
         }
 
         if (!property || !value) {
-            return res.status(400).json({ 
-                error: "Please provide 'property' and 'value'. Optional: '&compare=contains'" 
+            return res.status(400).json({
+                error: "Please provide 'property' and 'value'."
             });
         }
 
-        console.log(`🔍 Searching across all sites: [${property}] ${compare}[${value}]`);
+        // =====================================
+        // FILTER SITES BY 'siteName' PARAMETER
+        // =====================================
+        let targetSites = WP_SITES;
 
-        // 👇 Pass 'compare' into the helper function
-        const fetchPromises = WP_SITES.map(async (site) => {
+        if (siteName) {
+            // Find the specific site ignoring case (e.g., 'stylenova' or 'StyleNova')
+            targetSites = WP_SITES.filter(s => s.name.toLowerCase() === siteName.toLowerCase());
+
+            if (targetSites.length === 0) {
+                return res.status(404).json({
+                    error: `Site '${siteName}' not found. Available sites: ${WP_SITES.map(s => s.name).join(', ')}`
+                });
+            }
+        }
+
+        console.log(`🔍 Searching across ${targetSites.length} site(s): [${property}] ${compare} [${value}]`);
+        if (shouldDelete) console.log(`⚠️ WARNING: Deletion mode is ENABLED!`);
+
+        // =====================================
+        // FETCH (AND OPTIONALLY DELETE) PRODUCTS
+        // =====================================
+        const fetchPromises = targetSites.map(async (site) => {
             const products = await getProductBydetails(property, value, compare, site);
-            
+
+            let deletedCount = 0;
+            let deletedIds = [];
+
+            // If deletion mode is ON, delete products one by one safely
+            if (shouldDelete && products.length > 0) {
+                for (const p of products) {
+                    const success = await deleteProduct(p.id, site);
+                    if (success) {
+                        deletedCount++;
+                        deletedIds.push(p.id);
+                    }
+                    // Pause for 250ms between deletes to prevent crashing WooCommerce
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+            }
+
+            // Map the results to keep the JSON clean and easy to read
             return {
                 siteName: site.name,
                 matchCount: products.length,
+                deletedCount: deletedCount,
+                deletedIds: deletedIds,
                 products: products.map(p => ({
                     id: p.id,
                     name: p.name,
@@ -120,11 +220,14 @@ router.get("/getProductBydetails", async (req, res) => {
             };
         });
 
+        // Wait for all sites to finish searching (and deleting)
         const allResults = await Promise.all(fetchPromises);
 
+        // 3. Return the grouped results
         res.status(200).json({
             searchQuery: { property, compareRule: compare, value },
-            totalSitesSearched: WP_SITES.length,
+            action: shouldDelete ? "deleted" : "searched",
+            totalSitesProcessed: targetSites.length,
             results: allResults
         });
 
@@ -133,6 +236,7 @@ router.get("/getProductBydetails", async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
 
 router.get('/checkpoint', async (req, res) => {
     try {
