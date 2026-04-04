@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct,fetchAllMatchingProducts } from "../core/wpBulkSafeSync.js";
 import { CLIENT_CONFIGS } from '../config/clients.js';
 
 const router = express.Router();
@@ -144,66 +144,63 @@ router.get('/update-stale-sizes', async (req, res) => {
 
 router.get("/getProductBydetails", async (req, res) => {
     try {
-        // Grab property, value, compare, siteName, and delete from the URL
         const { property, value, siteName } = req.query;
-        let compare = req.query.compare || '='; // Default to Exact Match
+        let compare = req.query.compare || '='; 
+        const shouldDelete = req.query.delete === 'true'; 
 
-        // Check if user requested deletion (e.g., ?delete=true)
-        const shouldDelete = req.query.delete === 'true';
-
-        // Make it user-friendly: if they type 'contains', change it to SQL 'LIKE'
-        if (compare.toLowerCase() === 'contains') {
-            compare = 'LIKE';
-        }
+        if (compare.toLowerCase() === 'contains') compare = 'LIKE';
 
         if (!property || !value) {
-            return res.status(400).json({
-                error: "Please provide 'property' and 'value'."
-            });
+            return res.status(400).json({ error: "Please provide 'property' and 'value'." });
         }
 
-        // =====================================
-        // FILTER SITES BY 'siteName' PARAMETER
-        // =====================================
         let targetSites = WP_SITES;
-
         if (siteName) {
-            // Find the specific site ignoring case (e.g., 'stylenova' or 'StyleNova')
             targetSites = WP_SITES.filter(s => s.name.toLowerCase() === siteName.toLowerCase());
-
             if (targetSites.length === 0) {
-                return res.status(404).json({
-                    error: `Site '${siteName}' not found. Available sites: ${WP_SITES.map(s => s.name).join(', ')}`
-                });
+                return res.status(404).json({ error: `Site '${siteName}' not found.` });
             }
         }
 
         console.log(`🔍 Searching across ${targetSites.length} site(s): [${property}] ${compare} [${value}]`);
-        if (shouldDelete) console.log(`⚠️ WARNING: Deletion mode is ENABLED!`);
+        if (shouldDelete) console.log(`⚠️ WARNING: Deletion mode is ENABLED! Deleting 10 at a time.`);
 
         // =====================================
-        // FETCH (AND OPTIONALLY DELETE) PRODUCTS
+        // FETCH AND DELETE IN BATCHES
         // =====================================
         const fetchPromises = targetSites.map(async (site) => {
-            const products = await getProductBydetails(property, value, compare, site);
-
+            // 1. Get ALL matching products (Handles Pagination safely)
+            const products = await fetchAllMatchingProducts(property, value, compare, site);
+            
             let deletedCount = 0;
-            let deletedIds = [];
+            let deletedIds =[];
 
-            // If deletion mode is ON, delete products one by one safely
+            // 2. BATCH DELETION LOGIC
             if (shouldDelete && products.length > 0) {
-                for (const p of products) {
-                    const success = await deleteProduct(p.id, site);
-                    if (success) {
-                        deletedCount++;
-                        deletedIds.push(p.id);
-                    }
-                    // Pause for 250ms between deletes to prevent crashing WooCommerce
-                    await new Promise(resolve => setTimeout(resolve, 250));
+                const batchSize = 10;
+                
+                for (let i = 0; i < products.length; i += batchSize) {
+                    const batch = products.slice(i, i + batchSize);
+                    console.log(`🗑️ [${site.name}] Deleting batch ${i / batchSize + 1} (${batch.length} items)...`);
+                    
+                    // Delete 10 items concurrently
+                    const deletePromises = batch.map(p => deleteProduct(p.id, site));
+                    const results = await Promise.all(deletePromises);
+                    
+                    // Count successes
+                    results.forEach((success, index) => {
+                        if (success) {
+                            deletedCount++;
+                            deletedIds.push(batch[index].id);
+                        }
+                    });
+                    
+                    // Pause for 1 second between batches to let WooCommerce breathe
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
-
-            // Map the results to keep the JSON clean and easy to read
+            
+            // 3. Return results
             return {
                 siteName: site.name,
                 matchCount: products.length,
@@ -220,13 +217,11 @@ router.get("/getProductBydetails", async (req, res) => {
             };
         });
 
-        // Wait for all sites to finish searching (and deleting)
         const allResults = await Promise.all(fetchPromises);
 
-        // 3. Return the grouped results
         res.status(200).json({
             searchQuery: { property, compareRule: compare, value },
-            action: shouldDelete ? "deleted" : "searched",
+            action: shouldDelete ? "deleted_in_batches" : "searched",
             totalSitesProcessed: targetSites.length,
             results: allResults
         });

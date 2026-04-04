@@ -151,54 +151,76 @@ async function getProductBySKU(sku, site) {
   }
 }
 
-export async function getProductBydetails(property, value, compare, site) {
+// 1. Core Fetch Function (Handles Pagination)
+export async function getProductBydetails(property, value, compare, site, page = 1) {
   try {
-    let endpoint = `${site.url}/wp-json/wc/v3/products`;
+    // We fetch 100 per page to gather them quickly without crashing
+    let endpoint = `${site.url}/wp-json/wc/v3/products?page=${page}&per_page=100`;
 
-    const standardFields =['sku', 'status', 'slug', 'category', 'tag'];
+    const standardFields = ['sku', 'status', 'slug', 'category', 'tag'];
     
     if (standardFields.includes(property.toLowerCase())) {
-        // Standard WooCommerce search
-        endpoint += `?${property}=${encodeURIComponent(value)}`;
+        endpoint += `&${property}=${encodeURIComponent(value)}`;
     } else {
-        // Custom Meta Field! Now includes the 'meta_compare' parameter
-        endpoint += `?meta_key=${encodeURIComponent(property)}&meta_value=${encodeURIComponent(value)}&meta_compare=${encodeURIComponent(compare)}`;
+        endpoint += `&meta_key=${encodeURIComponent(property)}&meta_value=${encodeURIComponent(value)}&meta_compare=${encodeURIComponent(compare)}`;
     }
 
     const res = await fetch(endpoint, {
       headers: { Authorization: getAuthHeader(site) },
     });
 
-    const contentType = res.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      console.error('❌ WooCommerce did not return JSON on ', site.name);
-      return[];
-    }
+    if (!res.ok) return { products:[], totalPages: 0 };
 
+    // WooCommerce returns total pages in the headers!
+    const totalPages = parseInt(res.headers.get('x-wp-totalpages') || '1');
     const data = await res.json();
-    return Array.isArray(data) ? data :[]; 
+    
+    return { 
+        products: Array.isArray(data) ? data :[], 
+        totalPages 
+    };
   } catch (err) {
-    console.error('❌ Error checking product on '+site.name + ':', err);
-    return[];
+    console.error(`❌ Error checking product on ${site.name}:`, err);
+    return { products:[], totalPages: 0 };
   }
+}
+
+// 2. Loop Function to gather ALL matching products safely
+export async function fetchAllMatchingProducts(property, value, compare, site) {
+    let allProducts =[];
+    let page = 1;
+    let totalPages = 1;
+
+    console.log(`⏳ Gathering matching products from ${site.name}...`);
+    
+    do {
+        const result = await getProductBydetails(property, value, compare, site, page);
+        if (result.products.length === 0) break;
+        
+        allProducts.push(...result.products);
+        totalPages = result.totalPages;
+        page++;
+    } while (page <= totalPages);
+
+    return allProducts;
 }
 
 export async function deleteProduct(productId, site) {
   try {
     // Note: ?force=true skips the trash bin and deletes it permanently
     const endpoint = `${site.url}/wp-json/wc/v3/products/${productId}?force=true`;
-    
+
     const res = await fetch(endpoint, {
       method: "DELETE",
       headers: { Authorization: getAuthHeader(site) },
     });
 
     if (res.ok) {
-        console.log(`🗑️ [${site.name}] Deleted product ID: ${productId}`);
-        return true;
+      console.log(`🗑️ [${site.name}] Deleted product ID: ${productId}`);
+      return true;
     } else {
-        console.error(`❌ [${site.name}] Failed to delete product ID: ${productId}`);
-        return false;
+      console.error(`❌ [${site.name}] Failed to delete product ID: ${productId}`);
+      return false;
     }
   } catch (err) {
     console.error(`❌[${site.name}] Error deleting product:`, err);
