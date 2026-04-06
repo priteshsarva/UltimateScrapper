@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct,fetchAllMatchingProducts } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts } from "../core/wpBulkSafeSync.js";
 import { CLIENT_CONFIGS } from '../config/clients.js';
 
 const router = express.Router();
@@ -145,8 +145,8 @@ router.get('/update-stale-sizes', async (req, res) => {
 router.get("/getProductBydetails", async (req, res) => {
     try {
         const { property, value, siteName } = req.query;
-        let compare = req.query.compare || '='; 
-        const shouldDelete = req.query.delete === 'true'; 
+        let compare = req.query.compare || '=';
+        const shouldDelete = req.query.delete === 'true';
 
         if (compare.toLowerCase() === 'contains') compare = 'LIKE';
 
@@ -162,66 +162,94 @@ router.get("/getProductBydetails", async (req, res) => {
             }
         }
 
-        console.log(`🔍 Searching across ${targetSites.length} site(s): [${property}] ${compare} [${value}]`);
-        if (shouldDelete) console.log(`⚠️ WARNING: Deletion mode is ENABLED! Deleting 10 at a time.`);
+        console.log(`\n🔍 PHASE 1: Fetching products across ${targetSites.length} site(s)...`);
 
         // =====================================
-        // FETCH AND DELETE IN BATCHES
+        // PHASE 1: FETCH FROM ALL SITES FIRST
         // =====================================
         const fetchPromises = targetSites.map(async (site) => {
-            // 1. Get ALL matching products (Handles Pagination safely)
             const products = await fetchAllMatchingProducts(property, value, compare, site);
-            
-            let deletedCount = 0;
-            let deletedIds =[];
-
-            // 2. BATCH DELETION LOGIC
-            if (shouldDelete && products.length > 0) {
-                const batchSize = 10;
-                
-                for (let i = 0; i < products.length; i += batchSize) {
-                    const batch = products.slice(i, i + batchSize);
-                    console.log(`🗑️ [${site.name}] Deleting batch ${i / batchSize + 1} (${batch.length} items)...`);
-                    
-                    // Delete 10 items concurrently
-                    const deletePromises = batch.map(p => deleteProduct(p.id, site));
-                    const results = await Promise.all(deletePromises);
-                    
-                    // Count successes
-                    results.forEach((success, index) => {
-                        if (success) {
-                            deletedCount++;
-                            deletedIds.push(batch[index].id);
-                        }
-                    });
-                    
-                    // Pause for 1 second between batches to let WooCommerce breathe
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-            }
-            
-            // 3. Return results
+            // 👇 ADDED EXPLICIT LOG HERE so you know if a site found 0 items!
+            console.log(`✅ [${site.name}] Found ${products.length} products.`);
             return {
-                siteName: site.name,
-                matchCount: products.length,
-                deletedCount: deletedCount,
-                deletedIds: deletedIds,
-                products: products.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    sku: p.sku,
-                    price: p.price,
-                    status: p.status,
-                    permalink: p.permalink
-                }))
+                site,
+                products,
+                deletedCount: 0,
+                deletedIds: []
             };
         });
 
-        const allResults = await Promise.all(fetchPromises);
+        // Wait for ALL sites to finish gathering their products
+        const sitesData = await Promise.all(fetchPromises);
+        console.log(`✅ All products fetched successfully.`);
+
+        // =====================================
+        // PHASE 2: DELETE GLOBALLY & SIMULTANEOUSLY
+        // =====================================
+        if (shouldDelete) {
+            console.log(`\n⚠️ WARNING: Deletion mode is ENABLED! Starting synchronized global deletion.`);
+
+            // Find which site has the most products so we know how many batches to run
+            const maxProducts = Math.max(...sitesData.map(data => data.products.length), 0);
+            const batchSize = 50;
+
+            // Loop through batches globally
+            for (let i = 0; i < maxProducts; i += batchSize) {
+                console.log(`\n🔥 Deleting Global Batch ${Math.floor(i / batchSize) + 1} simultaneously across all sites...`);
+
+                // Map over every site and fire their deletes at the exact same time
+                const globalBatchPromises = sitesData.map(async (data) => {
+                    const batch = data.products.slice(i, i + batchSize);
+
+                    if (batch.length > 0) {
+                        console.log(`   ->[${data.site.name}] Firing ${batch.length} deletes...`);
+
+                        // Fire up to 50 deletes concurrently for this specific site
+                        const deletePromises = batch.map(p => deleteProduct(p.id, data.site));
+                        const results = await Promise.all(deletePromises);
+
+                        // Track successes
+                        results.forEach((success, index) => {
+                            if (success) {
+                                data.deletedCount++;
+                                data.deletedIds.push(batch[index].id);
+                            }
+                        });
+                    }
+                });
+
+                // Wait for ALL sites to finish this specific batch of 50
+                await Promise.all(globalBatchPromises);
+
+                // Pause for 1 second to let the MySQL databases on all servers breathe
+                console.log(`⏳ Batch complete. Letting servers breathe for 1 second...`);
+                // await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            console.log(`⏳ Batch complete.`);
+
+        }
+
+        // =====================================
+        // PHASE 3: FORMAT AND RETURN RESULTS
+        // =====================================
+        const allResults = sitesData.map(data => ({
+            siteName: data.site.name,
+            matchCount: data.products.length,
+            deletedCount: data.deletedCount,
+            deletedIds: data.deletedIds,
+            products: data.products.map(p => ({
+                id: p.id,
+                name: p.name,
+                sku: p.sku,
+                price: p.price,
+                status: p.status,
+                permalink: p.permalink
+            }))
+        }));
 
         res.status(200).json({
             searchQuery: { property, compareRule: compare, value },
-            action: shouldDelete ? "deleted_in_batches" : "searched",
+            action: shouldDelete ? "deleted_simultaneously" : "searched",
             totalSitesProcessed: targetSites.length,
             results: allResults
         });
