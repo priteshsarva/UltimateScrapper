@@ -3,6 +3,8 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { dbManager } from '../models/dbManager.js';
 import { SITES_REGISTRY } from '../config/sites.js';
 import { fetchDataa } from "./strategies/methodA.js";
+import { fetchDataaB } from "./strategies/methodB.js";
+
 import { promisify } from 'util';
 
 
@@ -28,7 +30,11 @@ export async function executeScraper(siteId) {
             // This is your Cartpe logic
             console.log("METHOD_A");
             console.log(config.base_url);
-            await fetchDataa(config.base_url,DB);
+            console.log("Test");
+
+            // await fetchDataa(config.base_url,DB);
+            let temp = "https://ticktock.jdwebnship.com/"
+            await fetchDataaB(temp,DB);
         }
         else if (config.method === "METHOD_B") {
             console.log(siteId);
