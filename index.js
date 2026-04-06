@@ -22,7 +22,7 @@ import { fixBrandsFromMap } from "./services/wpBulkSafeSync.js";
 import productRoutes from './routes/productRoutes.js'
 import devRoutes from './routes/devRoutes.js'
 
-import {fetchDataaB} from './core/strategies/methodB.js'
+import { fetchDataaB } from './core/strategies/methodB.js'
 
 import { tenantIdentify } from './middleware/tenantIdentify.js';
 import { SITES_REGISTRY } from './config/sites.js';
@@ -197,7 +197,9 @@ app.get('/devproductupdates', async (req, res) => {
         for (const site of SITES_REGISTRY) {
             console.log(site.searchKey);
             // Execute the rotator and this also executeScraper
-            await runRotator();
+            // await runRotator();
+            await executeScraper(site.searchKey);
+
         }
         gitAutoCommitAndPush();
 
@@ -208,7 +210,7 @@ app.get('/devproductupdates', async (req, res) => {
 
 })
 
-app.use('/dev',devRoutes)
+app.use('/dev', devRoutes)
 
 
 
