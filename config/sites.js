@@ -1,5 +1,10 @@
 export const SITES_REGISTRY = [
     // ================= WATCH SITES (32) =================
+    { id: "ticktock", name: "ticktock", base_url: "https://ticktock.jdwebnship.com/", category: "watches", method: "METHOD_B", searchKey: "ticktock" },
+    { id: "kdenterprise", name: "kdenterprise", base_url: "https://kdenterprise.jdwebnship.com/", category: "watches", method: "METHOD_B", searchKey: "kdenterprise" },
+    { id: "watchflex", name: "watchflex", base_url: "https://watchflex.jdwebnship.com/", category: "watches", method: "METHOD_B", searchKey: "watchflex" },
+    { id: "watchstreet", name: "watch-street", base_url: "https://watch-street.jdwebnship.com/", category: "watches", method: "METHOD_B", searchKey: "watchstreet" },
+    { id: "timepieceJD", name: "timepieceJD", base_url: "https://timepiece.jdwebnship.com/", category: "watches", method: "METHOD_B", searchKey: "timepieceJD" },
     { id: "mangoenterprise", name: "Mango Enterprise", base_url: "https://mangoenterprise.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "mangoenterprise" },
     { id: "zeewatches", name: "Zee Watches", base_url: "https://zeewatches.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "zeewatches" },
     { id: "wristtimess", name: "Wrist Timess", base_url: "https://wristtimess.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "wristtimess" },

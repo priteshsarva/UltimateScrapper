@@ -197,8 +197,8 @@ app.get('/devproductupdates', async (req, res) => {
         for (const site of SITES_REGISTRY) {
             console.log(site.searchKey);
             // Execute the rotator and this also executeScraper
-            // await runRotator();
-            await executeScraper(site.searchKey);
+            await runRotator();
+            // await executeScraper(site.searchKey);
 
         }
         gitAutoCommitAndPush();

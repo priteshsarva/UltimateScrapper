@@ -158,51 +158,49 @@ export async function getProductBydetails(property, value, compare, site, page =
     let endpoint = `${site.url}/wp-json/wc/v3/products?page=${page}&per_page=100`;
 
     const standardFields = ['sku', 'status', 'slug', 'category', 'tag'];
-    
     if (standardFields.includes(property.toLowerCase())) {
-        endpoint += `&${property}=${encodeURIComponent(value)}`;
+      endpoint += `&${property}=${encodeURIComponent(value)}`;
     } else {
-        endpoint += `&meta_key=${encodeURIComponent(property)}&meta_value=${encodeURIComponent(value)}&meta_compare=${encodeURIComponent(compare)}`;
+      endpoint += `&meta_key=${encodeURIComponent(property)}&meta_value=${encodeURIComponent(value)}&meta_compare=${encodeURIComponent(compare)}`;
     }
 
     const res = await fetch(endpoint, {
       headers: { Authorization: getAuthHeader(site) },
     });
 
-    if (!res.ok) return { products:[], totalPages: 0 };
+    if (!res.ok) return { products: [], totalPages: 0 };
 
     // WooCommerce returns total pages in the headers!
     const totalPages = parseInt(res.headers.get('x-wp-totalpages') || '1');
     const data = await res.json();
-    
-    return { 
-        products: Array.isArray(data) ? data :[], 
-        totalPages 
+    return {
+      products: Array.isArray(data) ? data : [],
+      totalPages
     };
   } catch (err) {
     console.error(`❌ Error checking product on ${site.name}:`, err);
-    return { products:[], totalPages: 0 };
+    return { products: [], totalPages: 0 };
   }
 }
 
 // 2. Loop Function to gather ALL matching products safely
 export async function fetchAllMatchingProducts(property, value, compare, site) {
-    let allProducts =[];
-    let page = 1;
-    let totalPages = 1;
+  let allProducts = [];
+  let page = 1;
+  let totalPages = 1;
 
-    console.log(`⏳ Gathering matching products from ${site.name}...`);
-    
-    do {
-        const result = await getProductBydetails(property, value, compare, site, page);
-        if (result.products.length === 0) break;
-        
-        allProducts.push(...result.products);
-        totalPages = result.totalPages;
-        page++;
-    } while (page <= totalPages);
+  console.log(`⏳ Gathering matching products from ${site.name}...`);
 
-    return allProducts;
+  do {
+    const result = await getProductBydetails(property, value, compare, site, page);
+    if (result.products.length === 0) break;
+
+    allProducts.push(...result.products);
+    totalPages = result.totalPages;
+    page++;
+  } while (page <= totalPages);
+
+  return allProducts;
 }
 
 export async function deleteProduct(productId, site) {
@@ -303,11 +301,13 @@ export async function upsertProductSafe(product, site, productId = null) {
       console.log(`🆕 [${site.name}] Creating new product: ${product.productName}`);
     }
 
-    const categoryId = !existing ? await getOrCreateCategory(product.catName, site) : null;
-    // const brandId = !existing ? await getOrCreateBrand(product.productBrand) : null;  //use while creating new
-    // const brandId = existing ? await getOrCreateBrand(product.productBrand) : null;  //used while i was doing bulk update
-    const brandId = !existing ? await getOrCreateBrand(product.productBrand, site) : null;  //used while i was doing bulk update from devupdate
+    // const categoryId = !existing ? await getOrCreateCategory(product.catName, site) : null;
+    const categoryId = await getOrCreateCategory(product.catName, site);
+    const brandId = await getOrCreateBrand(product.productBrand, site);  //use while creating new
 
+    //  const brandId = !existing ? await getOrCreateBrand(product.productBrand) : null;  //use while creating new
+    // const brandId = existing ? await getOrCreateBrand(product.productBrand) : null;  //used while i was doing bulk update
+    // const brandId = !existing ? await getOrCreateBrand(product.productBrand, site) : null;  //used while i was doing bulk update from devupdate
     let images = [];
     try {
       const imgs = JSON.parse(product.imageUrl);
@@ -355,43 +355,44 @@ export async function upsertProductSafe(product, site, productId = null) {
 
 
     // ✅ Add price, category & brand only for new products
-    // if (!existing) { activate after correction finesh
-    if (existing) {
-      payload.regular_price = regularPrice;
-      payload.sku,
-        payload.meta_data.push({
-          key: "productDateCreation",
-          value: Date.now(),
-        });
+    // activate after correction finesh
+    // if (!existing) {
+    // if (existing) {
+    payload.regular_price = regularPrice;
+    payload.sku,
       payload.meta_data.push({
-        key: "productOriginalPrice",
-        value: product.productOriginalPrice,
+        key: "productDateCreation",
+        value: Date.now(),
       });
+    payload.meta_data.push({
+      key: "productOriginalPrice",
+      value: product.productOriginalPrice,
+    });
 
-      let imageUrl;
-      if (typeof product.imageUrl === "string") {
-        // Already a string → just replace
-        imageUrl = product.imageUrl.replace("gallery_sm", "gallery_md");
-      } else {
-        // Not a string → convert to JSON string first, then replace
-        imageUrl = JSON.stringify(product.imageUrl || []).replace("gallery_sm", "gallery_md");
-      }
-
-      payload.meta_data.push({
-        key: "imageUrl",
-        value: imageUrl,
-      });
-
-      payload.meta_data.push({
-        key: "videoUrl",
-        value: product.videoUrl || "",
-      });
-
-      if (categoryId) payload.categories = [{ id: categoryId }];
-      // Directly assign the brand for new products
-      if (brandId) payload.brands = [{ id: brandId }];
-
+    let imageUrl;
+    if (typeof product.imageUrl === "string") {
+      // Already a string → just replace
+      imageUrl = product.imageUrl.replace("gallery_sm", "gallery_md");
+    } else {
+      // Not a string → convert to JSON string first, then replace
+      imageUrl = JSON.stringify(product.imageUrl || []).replace("gallery_sm", "gallery_md");
     }
+
+    payload.meta_data.push({
+      key: "imageUrl",
+      value: imageUrl,
+    });
+
+    payload.meta_data.push({
+      key: "videoUrl",
+      value: product.videoUrl || "",
+    });
+
+    if (categoryId) payload.categories = [{ id: categoryId }];
+    // Directly assign the brand for new products
+    if (brandId) payload.brands = [{ id: brandId }];
+
+    // }
 
 
     const res = await fetch(endpoint, {

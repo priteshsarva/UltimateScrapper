@@ -29,18 +29,12 @@ export async function executeScraper(siteId) {
         if (config.method === "METHOD_A") {
             // This is your Cartpe logic
             console.log("METHOD_A");
-            console.log(config.base_url);
-            console.log("Test");
-
-            // await fetchDataa(config.base_url,DB);
-            let temp = "https://ticktock.jdwebnship.com/"
-            await fetchDataaB(temp,DB);
+            await fetchDataa(config.base_url,DB);
         }
         else if (config.method === "METHOD_B") {
-            console.log(siteId);
-
+            // This is your jdwebnship logic
             console.log("METHOD_B");
-
+            await fetchDataaB(config.base_url,DB);
         }
 
     } catch (err) {

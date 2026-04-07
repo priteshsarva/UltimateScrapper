@@ -1,10 +1,12 @@
 // Target sources array to change catname to "Luxury Watch"
 const targetSources = [
-    "https://wristifyreseller.cartpe.in/",
-    "https://watchfactorys.cartpe.in/",
-    "https://watchkart.cartpe.in/",
-    "https://timepiece.cartpe.in/",
-    "https://hypewrist.cartpe.in/"
+  "https://wristifyreseller.cartpe.in/",
+  "https://watchfactorys.cartpe.in/",
+  "https://watchkart.cartpe.in/",
+  "https://timepiece.cartpe.in/",
+  "https://hypewrist.cartpe.in/",
+  "https://watch-street.jdwebnship.com/",
+  "https://timepiece.jdwebnship.com/"
 ];
 
 
@@ -4039,16 +4041,16 @@ const brandMap = {
 
 
 
- function updateProductCategory(product) {
-    // Check if the productFetchedFrom matches any of the target sources
-    if (targetSources.includes(product.productFetchedFrom)) {
-        product.catName = 'Luxury Watch'; // Update category to 'Luxury Watch'
-    }
+function updateProductCategory(product) {
+  // Check if the productFetchedFrom matches any of the target sources
+  if (targetSources.includes(product.productFetchedFrom)) {
+    product.catName = 'Luxury Watch'; // Update category to 'Luxury Watch'
+  }
 
-    return product;
+  return product;
 }
 
 
 
 
-export { brandMap ,updateProductCategory}
+export { brandMap, updateProductCategory }

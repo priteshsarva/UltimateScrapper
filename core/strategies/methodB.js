@@ -198,7 +198,7 @@ async function scrapeCategories(page, fullUrl, DB, retries = 3) {
         try {
             // Navigate to the category page
             await page.goto(fullUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-
+            await delay(1500);
             // Extract category data
             const categories = await page.evaluate(() => {
                 const categoryElements = document.querySelectorAll('div.abs_image_wrapper');
@@ -243,7 +243,7 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
         try {
             // Navigate to the product page
             await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 6000 }); // Increase timeout to 120 seconds
-
+            await delay(1500);
             // await page.waitForSelector('#product_list_div', { timeout: 60000 }); // Increase timeout
 
             // will procced to next step if either products are found or "not found" message appears, otherwise it will timeout after 15 seconds
@@ -267,73 +267,83 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             await viewMore(page)
             console.log("After view more");
 
-            const productElements = await page.evaluate(() => {
-                const container = document.querySelector('#product_list_div');
+
+            await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+            await delay(2000);
+
+            const productElements = await page.evaluate(async () => {
+                // 1. Helper function to sleep inside the browser
+                const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+                // 2. Check for placeholders
+                const hasPlaceholders = () => {
+                    const imgs = document.querySelectorAll('.shop-p-grid .product-card img');
+                    return Array.from(imgs).some(img => img.src.includes('placeholder') || !img.src);
+                };
+
+                // 3. If placeholders exist, scroll down and wait to trigger lazy loading
+                if (hasPlaceholders()) {
+                    window.scrollBy(0, 800); // Small scroll to trigger Next.js IntersectionObserver
+                    await delay(2000);       // Wait 2 seconds for URLs to swap
+                    window.scrollBy(0, -800); // Scroll back up
+                }
+
+                const container = document.querySelector('.shop-p-grid');
                 if (!container) return [];
 
-                const items = container.querySelectorAll('div.col-lg-4, div.col-md-6, div.col-6');
+                const items = container.querySelectorAll('.product-card');
 
                 return Array.from(items).map(item => {
+                    const link = item.querySelector('.abs_image_wrapper a');
+                    const detailUrl = link?.href || null;
 
-                    // ============================
-                    // IMAGE + DETAIL URL
-                    // ============================
-                    const img = item.querySelector('img.img-fluid');
-                    const featuredimg = img?.src || null;
+                    const img = item.querySelector('.abs_image_wrapper img');
 
-                    // Most reliable: parent <a> of the image
-                    const detailUrl = img?.closest('a')?.href || null;
+                    // Use a prioritized selection for the image
+                    // 1. Check srcset (best for high res) 
+                    // 2. Check current src 
+                    // 3. Check data-src (common lazy-load attribute)
+                    let featuredimg = null;
+                    const srcset = img?.getAttribute('srcset');
+                    const dataSrc = img?.getAttribute('data-src');
 
-                    // ============================
-                    // TITLE (first <h6> in card)
-                    // ============================
-                    const title =
-                        item.querySelector('h6')?.innerText.trim() || null;
-
-                    // ============================
-                    // PRICE (first <h6> inside the price wrapper)
-                    // ============================
-                    // const price = item.querySelector('div h6')?.innerText.trim() || null;
-
-                    const rawPrice = Array.from(item.querySelectorAll('h6'))
-                        .map(el => el.innerText.trim())
-                        .find(text => /^[₹\s]*\d/.test(text)) || null;
-
-                    const price = rawPrice
-                        ?.replace(/[^0-9.]/g, '')  // keep only digits + decimal
-                        .trim() || null;
-                    console.log(price);
-
-
-                    // ============================
-                    // STOCK / BUTTON TEXT
-                    // ============================
-                    const button = item.querySelector('button');
-                    const btnText = button?.innerText.trim().toLowerCase() || "";
-                    let availability
-                    if (btnText.includes("add to cart")) {
-                        availability = true;
+                    if (srcset) {
+                        const srcsetUrls = srcset.split(',').map(s => s.trim().split(' ')[0]);
+                        featuredimg = srcsetUrls[srcsetUrls.length - 1];
                     } else {
-                        availability = false;
+                        featuredimg = dataSrc || img?.src || null;
                     }
 
-                    // ============================
-                    // SIZES (all label.badge after "Size :")
-                    // ============================
-                    const sizeLabels = Array.from(
-                        item.querySelectorAll('label.badge')
-                    )
+                    // Clean up Next.js Proxy URLs
+                    if (featuredimg && featuredimg.includes('/_next/image?url=')) {
+                        try {
+                            const urlObj = new URL(featuredimg, window.location.origin);
+                            const rawUrl = urlObj.searchParams.get('url');
+                            if (rawUrl) featuredimg = rawUrl;
+                        } catch (e) { }
+                    }
+
+                    // Final Relative Path Fix
+                    if (featuredimg && featuredimg.startsWith('/')) {
+                        featuredimg = window.location.origin + featuredimg;
+                    }
+
+                    // Metadata extraction
+                    const title = item.querySelector('h3')?.innerText.trim() || null;
+                    const priceEl = item.querySelector('.product-cont-size p.font-bold');
+                    const price = priceEl?.innerText.replace(/[^0-9.]/g, '').trim() || null;
+
+                    const buttons = Array.from(item.querySelectorAll('button'));
+                    const availability = buttons.some(btn => {
+                        const text = btn.innerText.toLowerCase();
+                        return text.includes("add to cart") || text.includes("buy now");
+                    });
+
+                    const sizeLabels = Array.from(item.querySelectorAll('label.badge, .size-badge, .text-xs.border'))
                         .map(l => l.innerText.trim())
                         .filter(s => s && s.toLowerCase() !== "size :");
 
-                    return {
-                        title,
-                        price,
-                        featuredimg,
-                        detailUrl,
-                        availability,
-                        sizes: sizeLabels
-                    };
+                    return { title, price, featuredimg, detailUrl, availability, sizes: sizeLabels };
                 });
             });
 
@@ -382,11 +392,15 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             // // console.error(`Error scraping products frommmmmm ${productUrl}:`, error.message); 
         }
 
+        console.log(catProductss);
+
+
         try {
             console.log("from try block");
             for (const eachproduct of catProductss) {
                 updateProductCategory(eachproduct);
                 const { productId, skipforwordpress } = await updateProduct(eachproduct, DB);
+
                 if (skipforwordpress) {
                     console.log("Skipped upsertProductSafe due to WordPress flag. ProductID = " + productId);
                 } else {
@@ -420,6 +434,166 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
     // console.log(products, `1`);
 
     return products;
+}
+
+// async function scrapeImages(page, url, DB) {
+
+//     console.log(`Scraping images from: ${url}`);
+//     const imageSlides = [];
+
+//     const query = `SELECT * FROM PRODUCTS WHERE productUrl = ?`;
+
+//     try {
+//         // Step 1: Select the productId based on the productUrl
+//         console.log('from updateProduct TRY BLOCK: ' + url);
+
+//         const row = await new Promise((resolve, reject) => {
+//             DB.all(query, [url], (err, row) => {
+//                 if (err) {
+//                     // <!-- // console.error(`DB GET Error: ${err}`); -->
+//                     reject(err);
+//                 } else {
+//                     resolve(row);
+//                 }
+//             });
+//         });
+
+//         // console.log(`Row: ${JSON.stringify(row)}`);
+
+//         if (row && row.length > 0) {
+//             console.log("product alredy exist");
+//             return { imageSlides: [], productShortDescription: '' };
+//         } else {
+
+//             try {
+//                 // Navigate to the product detail page
+//                 await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+//                 const htmlContent = await page.content();
+
+//                 // Load the HTML into Cheerio
+//                 const $ = cheerio.load(htmlContent);
+
+//                 // Extract the product description and video url
+//                 const productShortDescription = $('#home p').html();
+//                 const videoURL = $("#myVideo > source").attr('src');
+
+//                 // Extract image URLs
+//                 $('#slider img').each((index, element) => {
+//                     const imgSrc = $(element).attr('src');
+//                     if (imgSrc) {
+//                         imageSlides.push(imgSrc);
+//                     }
+//                 });
+
+//                 console.log('Scraped images:', imageSlides);
+//                 console.log('Scraped description:', productShortDescription);
+//                 console.log('Scraped videoUrl:', videoURL);
+
+//                 // want to download those images in my project
+//                 // and send that images link in return file
+//                 // if that image from the same url exist then don't download it
+//                 // make folder according to your for the image
+//                 // just send that img link from my project to return file in imageSlides
+
+//                 return { imageSlides, productShortDescription, videoURL };
+//             } catch (error) {
+//                 // <!-- // console.error('Error fetching images:', error.message); -->
+//                 return { imageSlides: [], productShortDescription: '', videoURL: '' };
+//             }
+
+//         }
+
+//     } catch (error) {
+//         // <!-- // console.error("Error in query:", error.message); -->
+//     }
+
+// }
+
+
+async function scrapeImages(page, url, DB) {
+    console.log(`Scraping images from: ${url}`);
+    const imageSlides = [];
+
+    const query = `SELECT * FROM PRODUCTS WHERE productUrl = ?`;
+
+    try {
+        // Step 1: Select the productId based on the productUrl
+        console.log('from updateProduct TRY BLOCK: ' + url);
+
+        const row = await new Promise((resolve, reject) => {
+            DB.all(query, [url], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+
+        if (row && row.length > 0) {
+            console.log("product already exist");
+            return { imageSlides: [], productShortDescription: '', videoURL: '' };
+        } else {
+            try {
+                // Navigate to the product detail page
+                await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+                const htmlContent = await page.content();
+                await delay(1500);
+                // Load the HTML into Cheerio
+                const $ = cheerio.load(htmlContent);
+
+                // ✅ EXTRACT DESCRIPTION
+                // ==========================================
+                // The description is wrapped in a div immediately following the <h4>Product Details</h4>
+                // Since the class list is a massive generated Tailwind string, we target the wrapper 
+                // and grab its direct sibling div.
+                const productShortDescription = $('.description-wrapper h4').next('div').html() || '';
+
+
+                // ==========================================
+                // ✅ EXTRACT VIDEO URL
+                // ==========================================
+                // Found the video tag! It's mixed in with the image sliders.
+                const videoURL = $("video source").attr('src') || '';
+
+
+                // ==========================================
+                // ✅ IMAGES (Fixed for new layout)
+                // ==========================================
+                // The new layout uses a thumbnail slider. We grab images from the buttons.
+                $('.thumbs-sub-slider img').each((index, element) => {
+                    const imgSrc = $(element).attr('src');
+                    // Push to array and prevent duplicates
+                    if (imgSrc && !imageSlides.includes(imgSrc)) {
+                        imageSlides.push(imgSrc);
+                    }
+                });
+
+                // Fallback: If the thumbnail slider isn't there, grab from the main view
+                if (imageSlides.length === 0) {
+                    $('.product-slide img').each((index, element) => {
+                        const imgSrc = $(element).attr('src');
+                        if (imgSrc && !imageSlides.includes(imgSrc)) {
+                            imageSlides.push(imgSrc);
+                        }
+                    });
+                }
+
+                console.log('Scraped images:', imageSlides);
+                console.log('Scraped description:', productShortDescription);
+                console.log('Scraped videoUrl:', videoURL);
+
+                return { imageSlides, productShortDescription, videoURL };
+
+            } catch (error) {
+                console.error('Error fetching images:', error.message);
+                return { imageSlides: [], productShortDescription: '', videoURL: '' };
+            }
+        }
+    } catch (error) {
+        console.error("Error in query:", error.message);
+        return { imageSlides: [], productShortDescription: '', videoURL: '' };
+    }
 }
 
 async function addProductToDatabase(product, DB) {
@@ -694,22 +868,6 @@ async function updateProduct(product, DB) {
     }
 }
 
-// async function viewMore(page, productCount) {
-//     const count = Math.ceil(productCount / 12);
-//     const viewMoreButtonSelector = '#loadmore_btn_category_product';
-
-//     await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
-//     for (let i = 0; i < count; i++) {
-//         try {
-//             await page.click(viewMoreButtonSelector);
-//             console.log(`Button clicked = ${i}`);
-//             await delay(4000);
-//         } catch (error) {
-//             // <!-- // console.error('Error clicking "View More" button:', error + i); -->
-//         }
-//     }
-// }
-
 async function viewMore(page) {
     console.log("Starting to load all products...");
     let clickCount = 0;
@@ -717,126 +875,58 @@ async function viewMore(page) {
 
     while (hasMoreButton) {
         try {
-            // Evaluate the DOM inside the browser to find and click the exact button
-            const buttonClicked = await page.evaluate(() => {
-                // 1. Find the main grid container
+            // 1. Wait UP TO 4 seconds for the exact button to appear and be visible
+            await page.waitForFunction(() => {
                 const grid = document.querySelector('.shop-p-grid.word-break');
                 if (!grid) return false;
 
-                // 2. Get all child elements inside the grid
                 const children = grid.children;
                 if (children.length === 0) return false;
 
-                // 3. Target the very last child element
                 const lastChild = children[children.length - 1];
-
-                // 4. Check if this last child is the "Load More" wrapper
                 if (lastChild && lastChild.classList.contains('col-span-full')) {
                     const button = lastChild.querySelector('button');
-                    
-                    // 5. Ensure the button exists, says "Load More", and is actually visible
-                    if (button && button.innerText.trim().toLowerCase().includes('load more') && button.offsetParent !== null) {
-                        button.click();
-                        return true; // Successfully clicked
+
+                    // Make sure it exists, says "Load More", is visible, and NOT disabled
+                    if (button &&
+                        button.innerText.trim().toLowerCase().includes('load more') &&
+                        button.offsetParent !== null &&
+                        !button.disabled) {
+                        return true;
                     }
                 }
-                
-                return false; // Button not found or disappeared
+                return false;
+            }, { timeout: 4000 }); // <-- Fails automatically if 4000ms pass
+
+            // 2. If the code reaches here, the button appeared! Let's click it.
+            await page.evaluate(() => {
+                const grid = document.querySelector('.shop-p-grid.word-break');
+                const lastChild = grid.children[grid.children.length - 1];
+                lastChild.querySelector('button').click();
             });
 
-            if (buttonClicked) {
-                clickCount++;
-                console.log(`Load More button clicked = ${clickCount}`);
-                
-                // Wait for the new products to load into the DOM
-                // (Using your existing delay function)
-                await delay(4000); 
-            } else {
-                // If the function returns false, the button is gone. Stop the loop.
-                console.log(`✅ "Load More" button disappeared. All products loaded! Total clicks: ${clickCount}`);
-                hasMoreButton = false; 
-            }
+            clickCount++;
+            console.log('Load More button clicked =', clickCount);
+
+            // 3. Tiny 500ms buffer after clicking
+            // This gives the website a fraction of a second to change the button to "Loading..."
+            // so our loop doesn't accidentally click the exact same button twice!
+            await delay(500);
 
         } catch (error) {
-            console.error('⚠️ Error during "Load More" sequence:', error.message);
-            hasMoreButton = false; // Break the loop safely if something crashes
+            // 4. Timeout reached! 
+            // If 4 seconds pass and the button didn't appear, waitForFunction throws an error.
+            // We catch that error here to cleanly exit the loop.
+            console.log('✅ "Load More" button not found or disappeared after 4 seconds. All products loaded! Total clicks: ', clickCount);
+            hasMoreButton = false;
         }
     }
+    await delay(1500);
+
 }
 
 
-async function scrapeImages(page, url, DB) {
 
-    console.log(`Scraping images from: ${url}`);
-    const imageSlides = [];
-
-    const query = `SELECT * FROM PRODUCTS WHERE productUrl = ?`;
-
-    try {
-        // Step 1: Select the productId based on the productUrl
-        console.log('from updateProduct TRY BLOCK: ' + url);
-
-        const row = await new Promise((resolve, reject) => {
-            DB.all(query, [url], (err, row) => {
-                if (err) {
-                    // <!-- // console.error(`DB GET Error: ${err}`); -->
-                    reject(err);
-                } else {
-                    resolve(row);
-                }
-            });
-        });
-
-        // console.log(`Row: ${JSON.stringify(row)}`);
-
-        if (row && row.length > 0) {
-            console.log("product alredy exist");
-            return { imageSlides: [], productShortDescription: '' };
-        } else {
-
-            try {
-                // Navigate to the product detail page
-                await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-                const htmlContent = await page.content();
-
-                // Load the HTML into Cheerio
-                const $ = cheerio.load(htmlContent);
-
-                // Extract the product description and video url
-                const productShortDescription = $('#home p').html();
-                const videoURL = $("#myVideo > source").attr('src');
-
-                // Extract image URLs
-                $('#slider img').each((index, element) => {
-                    const imgSrc = $(element).attr('src');
-                    if (imgSrc) {
-                        imageSlides.push(imgSrc);
-                    }
-                });
-
-                console.log('Scraped images:', imageSlides);
-                console.log('Scraped description:', productShortDescription);
-                console.log('Scraped videoUrl:', videoURL);
-
-                // want to download those images in my project
-                // and send that images link in return file
-                // if that image from the same url exist then don't download it
-                // make folder according to your for the image
-                // just send that img link from my project to return file in imageSlides
-
-                return { imageSlides, productShortDescription, videoURL };
-            } catch (error) {
-                // <!-- // console.error('Error fetching images:', error.message); -->
-                return { imageSlides: [], productShortDescription: '', videoURL: '' };
-            }
-
-        }
-
-    } catch (error) {
-        // <!-- // console.error("Error in query:", error.message); -->
-    }
-
-}
 
 // Start the scraping process
 export {
