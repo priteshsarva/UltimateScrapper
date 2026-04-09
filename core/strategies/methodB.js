@@ -400,12 +400,14 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             for (const eachproduct of catProductss) {
                 updateProductCategory(eachproduct);
                 const { productId, skipforwordpress } = await updateProduct(eachproduct, DB);
-
+                //for temporary disable
+                await syncProductToAllSites(eachproduct, productId);
                 if (skipforwordpress) {
                     console.log("Skipped upsertProductSafe due to WordPress flag. ProductID = " + productId);
                 } else {
                     console.log("upsertProductSafe with id" + productId)
-                    await syncProductToAllSites(eachproduct, productId);
+                    //for temporary 
+                    // await syncProductToAllSites(eachproduct, productId);
                 }
                 console.log("From Each Product");
             }
