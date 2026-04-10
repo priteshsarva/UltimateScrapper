@@ -672,6 +672,7 @@ export async function BulkProductOutOfStock(req, res) {
     const now = Date.now();
     const threeDaysAgo = now - 3 * 24 * 60 * 60 * 1000;
     const twentyMinsAgo = now - 20 * 60 * 1000;
+    const tenDaysAgo = now - 10 * 24 * 60 * 60 * 1000;
 
     // We check ALL your active databases now
     const databasesToCheck = ['watches', 'shoes'];
@@ -691,11 +692,8 @@ export async function BulkProductOutOfStock(req, res) {
                SET sizeName = '[]', 
                    availability = 0, 
                    productLastUpdated = ?
-               WHERE CAST(productLastUpdated AS INTEGER) <= ?
-               AND (
-                  availability = 1 OR availability = '1' OR availability = true OR availability = 'true'
-                  OR sizeName != '[]'
-               )`,
+               WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ?
+               `,
             [now, threeDaysAgo],
             function (err) {
               if (err) return reject(err);
@@ -711,8 +709,8 @@ export async function BulkProductOutOfStock(req, res) {
             `UPDATE PRODUCTS 
                SET availability = 0, 
                    productLastUpdated = ?
-               WHERE CAST(productLastUpdated AS INTEGER) <= ?
-               AND (availability = 1 OR availability = '1' OR availability = true OR availability = 'true')`, [now, threeDaysAgo],
+               WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ?
+               `, [now, threeDaysAgo],
             function (err) {
               if (err) return reject(err);
               console.log(`[${dbName}] Rows marked out of stock: ${this.changes}`);
