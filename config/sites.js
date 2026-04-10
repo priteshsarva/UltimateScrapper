@@ -90,6 +90,13 @@ export const SITES_REGISTRY = [
     { id: "luxurystoreresell", name: "Luxury Store Resell", base_url: "https://luxurystoreresell.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "luxurystoreresell" },
     { id: "shoetrendzreseller", name: "Shoe Trendz Reseller", base_url: "https://shoetrendzreseller.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "shoetrendzreseller" },
     { id: "foot77loocker12", name: "Foot 77 Loocker 12", base_url: "https://foot77loocker12.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "foot77loocker12" },
-    { id: "shoeplanetin", name: "Shoe Planet In", base_url: "https://shoeplanetin.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "shoeplanetin" }
+    { id: "shoeplanetin", name: "Shoe Planet In", base_url: "https://shoeplanetin.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "shoeplanetin" },
+  
+    { id: "sneakerhunt", name: "sneakerhunt", base_url: "https://sneakerhunt.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "sneakerhunt" },
+    { id: "royalshoes11", name: "royalshoes11", base_url: "https://royalshoes11.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "royalshoes11" },
+    { id: "benzershoes", name: "benzershoes", base_url: "https://benzershoes.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "benzershoes" },
+    { id: "kickzhub", name: "kickzhub", base_url: "https://kickz-hub.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "kickzhub" }
+
+
 
 ];
