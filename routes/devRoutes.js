@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe } from "../core/wpBulkSafeSync.js";
 import { CLIENT_CONFIGS } from '../config/clients.js';
 
 const router = express.Router();
@@ -144,7 +144,7 @@ router.get('/update-stale-sizes', async (req, res) => {
 
 router.get("/getProductBydetails", async (req, res) => {
     try {
-        const { property, value, siteName } = req.query;
+        const { property, value, } = req.query;
         let compare = req.query.compare || '=';
         const shouldDelete = req.query.delete === 'true';
 
@@ -260,6 +260,153 @@ router.get("/getProductBydetails", async (req, res) => {
     }
 });
 
+router.get("/updateProductBydetails", async (req, res) => {
+    try {
+        const { property, value, siteName } = req.query;
+        let compare = req.query.compare || '=';
+
+        // Check if user requested an update (e.g., ?update=true)
+        const shouldUpdate = req.query.update === 'true';
+
+        if (compare.toLowerCase() === 'contains') compare = 'LIKE';
+
+        if (!property || !value) {
+            return res.status(400).json({ error: "Please provide 'property' and 'value'." });
+        }
+
+        let targetSites = WP_SITES;
+        if (siteName) {
+            targetSites = WP_SITES.filter(s => s.name.toLowerCase() === siteName.toLowerCase());
+            if (targetSites.length === 0) {
+                return res.status(404).json({ error: `Site '${siteName}' not found.` });
+            }
+        }
+
+        console.log(`\n🔍 PHASE 1: Fetching products across ${targetSites.length} site(s) for UPDATE...`);
+
+        // =====================================
+        // PHASE 1: FETCH FROM ALL SITES FIRST
+        // =====================================
+        const fetchPromises = targetSites.map(async (site) => {
+            const products = await fetchAllMatchingProducts(property, value, compare, site);
+            console.log(`✅ [${site.name}] Found ${products.length} products.`);
+            return {
+                site,
+                products,
+                updatedCount: 0,
+                updatedIds: []
+            };
+        });
+
+        const sitesData = await Promise.all(fetchPromises);
+        console.log(`✅ All products fetched successfully from WooCommerce.`);
+
+        // =====================================
+        // PHASE 2: FETCH LOCAL DB & UPDATE 
+        // =====================================
+        if (shouldUpdate) {
+            console.log(`\n⚠️ UPDATE MODE ENABLED! Synchronizing local data to WooCommerce.`);
+
+            const maxProducts = Math.max(...sitesData.map(data => data.products.length), 0);
+
+            // ⚠️ Keeping batch size small (10) because Upsert makes multiple API calls
+            const batchSize = 10;
+
+            for (let i = 0; i < maxProducts; i += batchSize) {
+                console.log(`\n🔥 Updating Global Batch ${Math.floor(i / batchSize) + 1} simultaneously across all sites...`);
+
+                const globalBatchPromises = sitesData.map(async (data) => {
+                    const batch = data.products.slice(i, i + batchSize);
+
+                    if (batch.length > 0) {
+                        console.log(`   ->[${data.site.name}] Firing ${batch.length} updates...`);
+
+                        // 👇 NEW: Figure out exactly which databases THIS specific site is allowed to check
+                        const clientConfig = CLIENT_CONFIGS[data.site.domain];
+                        const allowedDBs = clientConfig ? clientConfig.access.map(rule => rule.database) : [];
+
+                        if (allowedDBs.length === 0) {
+                            console.log(`❌[${data.site.name}] No allowed databases found in CLIENT_CONFIGS. Skipping.`);
+                            return;
+                        }
+
+                        const updatePromises = batch.map(async (p) => {
+                            const sku = p.sku;
+                            if (!sku) return false;
+
+                            // A. Look for this SKU ONLY in databases this site is allowed to see!
+                            let localProduct = null;
+                            for (const dbName of allowedDBs) {
+                                const db = await dbManager.getDb(dbName);
+                                localProduct = await new Promise(resolve => {
+                                    db.get("SELECT * FROM PRODUCTS WHERE productId = ?", [sku], (err, row) => resolve(row));
+                                });
+                                if (localProduct) {
+                                    // Make sure we attach the correct DB name so upsertProductSafe knows where it came from
+                                    localProduct.dbName = dbName;
+                                    break;
+                                }
+                            }
+
+                            // B. If found locally, push the fresh data to WooCommerce!
+                            if (localProduct) {
+                                await upsertProductSafe(localProduct, data.site, sku);
+                                return true;
+                            } else {
+                                console.log(`❌ [${data.site.name}] SKU ${sku} missing from allowed local DBs (${allowedDBs.join(', ')}). Cannot update.`);
+                                return false;
+                            }
+                        });
+
+                        const results = await Promise.all(updatePromises);
+
+                        // Track successes
+                        results.forEach((success, index) => {
+                            if (success) {
+                                data.updatedCount++;
+                                data.updatedIds.push(batch[index].sku);
+                            }
+                        });
+                    }
+                });
+
+                await Promise.all(globalBatchPromises);
+
+                console.log(`⏳ Batch complete. Letting WooCommerce breathe for 2 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+
+        // =====================================
+        // PHASE 3: FORMAT AND RETURN RESULTS
+        // =====================================
+        const allResults = sitesData.map(data => ({
+            siteName: data.site.name,
+            matchCount: data.products.length,
+            updatedCount: data.updatedCount,
+            updatedIds: data.updatedIds,
+            products: data.products.map(p => ({
+                id: p.id,
+                name: p.name,
+                sku: p.sku,
+                price: p.price,
+                status: p.status,
+                permalink: p.permalink
+            }))
+        }));
+
+        res.status(200).json({
+            searchQuery: { property, compareRule: compare, value },
+            action: shouldUpdate ? "updated_simultaneously" : "searched",
+            totalSitesProcessed: targetSites.length,
+            results: allResults
+        });
+
+    } catch (error) {
+        console.error("❌ Error in route:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 router.get('/checkpoint', async (req, res) => {
     try {
