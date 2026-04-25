@@ -1,7 +1,9 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites } from "../core/wpBulkSafeSync.js";
+import { scrapeSingleProductMethodA } from '../core/strategies/LiveMethodA.js';
 import { CLIENT_CONFIGS } from '../config/clients.js';
+import { SITES_REGISTRY } from '../config/sites.js';
 
 const router = express.Router();
 
@@ -407,6 +409,139 @@ router.get("/updateProductBydetails", async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
+router.get('/update-single-product', async (req, res) => {
+    try {
+        const { productId, productUrl } = req.query;
+
+        if (!productId && !productUrl) {
+            return res.status(400).json({ error: "Please provide either 'productId' or 'productUrl'." });
+        }
+
+        console.log(`\n🔍 Searching local databases for single product update...`);
+
+        // 1. Get all databases to check
+        const databasesToCheck = new Set();
+        for (const client of Object.values(CLIENT_CONFIGS)) {
+            for (const rule of client.access) {
+                databasesToCheck.add(rule.database);
+            }
+        }
+        const dbList = Array.from(databasesToCheck);
+
+        // 2. Find the product locally
+        let localProduct = null;
+        let targetDbName = null;
+
+        for (const dbName of dbList) {
+            const db = await dbManager.getDb(dbName);
+
+            let sql = "";
+            let param = "";
+
+            if (productId) {
+                sql = "SELECT * FROM PRODUCTS WHERE productId = ?";
+                param = productId;
+            } else {
+                sql = "SELECT * FROM PRODUCTS WHERE productUrl = ?";
+                param = productUrl;
+            }
+
+            localProduct = await new Promise(resolve => {
+                db.get(sql, [param], (err, row) => resolve(row));
+            });
+
+            if (localProduct) {
+                targetDbName = dbName;
+                break; // Found it! Stop searching other DBs.
+            }
+        }
+
+        if (!localProduct) {
+            return res.status(404).json({ error: "Product not found in any local database." });
+        }
+
+        console.log(`✅ Found product in '${targetDbName}.db'. Title: ${localProduct.productName}`);
+
+        // 3. Check if it was updated within the last 1 hour
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+        const lastUpdated = parseInt(localProduct.productLastUpdated);
+        const timeSinceUpdate = Date.now() - lastUpdated;
+
+        if (timeSinceUpdate < ONE_HOUR_MS) {
+            const minutesAgo = Math.floor(timeSinceUpdate / 60000);
+            console.log(`⏭️ Skipping: Product was updated just ${minutesAgo} minutes ago.`);
+            return res.status(200).json({
+                status: "skipped",
+                message: `Product was recently updated (${minutesAgo} minutes ago). Must be > 60 mins.`,
+                product: localProduct
+            });
+        }
+
+        console.log(`⏳ Product is older than 1 hour. Preparing to re-scrape...`);
+
+        // 4. Identify the Source and Method
+        const targetUrl = localProduct.productUrl;
+        const fetchedFrom = localProduct.productFetchedFrom || targetUrl;
+
+        const siteConfig = SITES_REGISTRY.find(site =>
+            fetchedFrom.includes(site.base_url) || fetchedFrom.includes(site.searchKey)
+        );
+
+        if (!siteConfig) {
+            return res.status(400).json({ error: "Cannot identify scraper site config for this product." });
+        }
+
+        console.log(`⚙️ Identified Method: ${siteConfig.method} from Site: ${siteConfig.name}`);
+
+        // 5. Trigger the Single Scraper (You will need to link your actual single scraper logic here)
+        let freshProductData = null;
+
+        try {
+            if (siteConfig.method === "METHOD_A") {
+                console.log("🚀 Firing Single Scraper Method A...");
+                freshProductData = await scrapeSingleProductMethodA(targetUrl, targetDbName);
+                // Example call:
+                // freshProductData = await scrapeSingleProductMethodA(targetUrl, targetDbName);
+
+            } else if (siteConfig.method === "METHOD_B") {
+                console.log("🚀 Firing Single Scraper Method B...");
+                // Example call:
+                // freshProductData = await scrapeSingleProductMethodB(targetUrl, targetDbName);
+            } else {
+                throw new Error("Unknown scraping method");
+            }
+        } catch (scrapeErr) {
+            console.error("❌ Scraping failed:", scrapeErr);
+            return res.status(500).json({ error: "Failed to scrape live product data." });
+        }
+
+        // --- DEV BYPASS --- 
+        // If your scraper logic above isn't built yet, we simulate fresh data grabbing from localProduct
+        freshProductData = freshProductData || localProduct;
+
+        // 6. Push the updated data to WooCommerce via the Smart Router
+        console.log(`🌐 Syncing fresh data to WooCommerce sites...`);
+        // We attach the dbName so the smart router knows if it's shoes or watches!
+        freshProductData.dbName = targetDbName;
+
+        await syncProductToAllSites(freshProductData, freshProductData.productId);
+
+        console.log(`🎉 Single product update and sync complete!`);
+
+        res.status(200).json({
+            status: "success",
+            message: "Product successfully re-scraped, updated locally, and synced to WooCommerce.",
+            methodUsed: siteConfig.method,
+            product: freshProductData
+        });
+
+    } catch (error) {
+        console.error("❌ Error in single product update route:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
+    }
+});
+
 
 router.get('/checkpoint', async (req, res) => {
     try {
