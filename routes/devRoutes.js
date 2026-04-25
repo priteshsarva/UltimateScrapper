@@ -1,7 +1,7 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
 import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites } from "../core/wpBulkSafeSync.js";
-import { scrapeSingleProductMethodA } from '../core/strategies/LiveMethodA.js';
+import { scrapeSingleProductMethodA } from '../core/strategies/liveMethodA.js';
 import { CLIENT_CONFIGS } from '../config/clients.js';
 import { SITES_REGISTRY } from '../config/sites.js';
 
