@@ -18,7 +18,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
 
     try {
         browser = await puppeteer.launch({
-            headless: true,
+            headless: false,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
             args:[
                 '--no-sandbox',
