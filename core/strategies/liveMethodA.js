@@ -12,21 +12,35 @@ puppeteer.use(StealthPlugin());
  */
 export async function scrapeSingleProductMethodA(productUrl, dbName) {
     console.log(`\n🚀 [LiveMethodA] Starting single scrape for: ${productUrl}`);
-    
+
     let browser = null;
     let freshData = null;
 
     try {
-        browser = await puppeteer.launch({
+        const browser = await puppeteer.launch({
             headless: false,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-            args:[
+            // Make viewport smaller so Chrome uses less RAM to render the page
+            defaultViewport: { width: 800, height: 600 },
+            args: [
+                // Basic Linux server requirements
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
+
+                // Disable graphics and heavy rendering
                 '--disable-gpu',
-                '--no-zygote'
+                '--disable-accelerated-2d-canvas',
+                '--no-zygote',
+
+                // 🚀 THE MAGIC "LIGHTWEIGHT" FLAGS:
+                '--single-process',             // Forces Chrome to run in 1 process instead of splitting into multiple RAM-heavy threads
+                '--disable-extensions',         // Blocks any background extensions
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--mute-audio',                 // Prevents audio resources from loading
+                '--js-flags=--max-old-space-size=256' // Strictly limits JavaScript memory to 256MB for this browser
             ]
         });
 
@@ -35,13 +49,13 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
             '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         );
-        
+
         console.log(`⏳ Navigating to product page...`);
         await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
         console.log(`🕵️‍♂️ Extracting product details...`);
         freshData = await page.evaluate(() => {
-            
+
             // --- TITLE ---
             const titleEl = document.querySelector(".s_product_text > h1");
             const productName = titleEl ? titleEl.textContent.trim() : null;
@@ -101,10 +115,10 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
     // 3. SMART MERGE & UPDATE LOCAL DATABASE
     console.log(`💾 Smart Merging and Updating '${dbName}.db'...`);
     const db = await dbManager.getDb(dbName);
-    
+
     // Fetch existing product to protect old data (like Name and Price if it's Out of Stock)
     const existingRow = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?",[productUrl], (err, row) => {
+        db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?", [productUrl], (err, row) => {
             if (err) reject(err);
             else resolve(row);
         });
@@ -117,13 +131,13 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
     // Merge logic: If the site hid the name/price because it's OOS, keep our DB's saved name/price!
     const finalName = freshData.productName || existingRow.productName;
     const finalPrice = freshData.productOriginalPrice || existingRow.productOriginalPrice;
-    
+
     // Always trust the live scraper for availability and images
     const finalAvailability = freshData.availability;
     const finalImages = freshData.imageUrl.length > 0 ? JSON.stringify(freshData.imageUrl) : existingRow.imageUrl;
     const finalFeatured = freshData.featuredimg || existingRow.featuredimg;
     const finalVideo = freshData.videoUrl || existingRow.videoUrl;
-    
+
     // If it's out of stock, clear the sizes array
     const finalSizes = finalAvailability === 0 ? '[]' : JSON.stringify(freshData.sizeName);
     const nowTimestamp = Date.now();
@@ -141,7 +155,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         WHERE productUrl = ?
     `;
 
-    const params =[
+    const params = [
         finalName,
         finalPrice,
         finalAvailability,
@@ -149,12 +163,12 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         finalFeatured,
         finalVideo,
         finalSizes,
-        nowTimestamp, 
+        nowTimestamp,
         productUrl
     ];
 
     await new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
+        db.run(sql, params, function (err) {
             if (err) reject(err);
             else {
                 console.log(`✅ DB Update successful. Rows changed: ${this.changes}`);
@@ -171,5 +185,5 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         });
     });
 
-    return updatedRow; 
+    return updatedRow;
 }
