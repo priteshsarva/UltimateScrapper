@@ -18,29 +18,18 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
 
     try {
         const browser = await puppeteer.launch({
-            headless: true,
+            headless: false,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-            // Make viewport smaller so Chrome uses less RAM to render the page
-            defaultViewport: { width: 800, height: 600 },
+            defaultViewport: { width: 1080, height: 800 },
             args: [
-                // Basic Linux server requirements
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-
-                // Disable graphics and heavy rendering
-                '--disable-gpu',
                 '--disable-accelerated-2d-canvas',
+                '--disable-gpu',
                 '--no-zygote',
-
-                // 🚀 THE MAGIC "LIGHTWEIGHT" FLAGS:
-                '--single-process',             // Forces Chrome to run in 1 process instead of splitting into multiple RAM-heavy threads
-                '--disable-extensions',         // Blocks any background extensions
-                '--disable-background-networking',
-                '--disable-default-apps',
-                '--disable-sync',
-                '--mute-audio',                 // Prevents audio resources from loading
-                '--js-flags=--max-old-space-size=256' // Strictly limits JavaScript memory to 256MB for this browser
+                '--window-size=1080,800',
+                '--start-maximized'
             ]
         });
 
