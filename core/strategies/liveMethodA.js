@@ -18,7 +18,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
 
     try {
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
             defaultViewport: { width: 1080, height: 800 },
             args: [
