@@ -26,7 +26,9 @@ import { fetchDataaB } from './core/strategies/methodB.js'
 
 import { tenantIdentify } from './middleware/tenantIdentify.js';
 import { SITES_REGISTRY } from './config/sites.js';
+import { dbManager } from './models/dbManager.js';
 
+import { CLIENT_CONFIGS } from './config/clients.js';
 
 import { executeScraper } from './core/scraperManager.js'
 // const PORT = process.env.PORT || 5000;
@@ -131,6 +133,40 @@ app.get('/updateserver', async (req, res) => {
     const now = new Date();
     const dateTimeString = now.toISOString().replace('T', ' ').split('.')[0]; // Format: YYYY-MM-DD HH:mm:ss
     const commitMessage = `DB updated on ${dateTimeString}`;
+
+    console.log("🧹 Manual Checkpoint triggered for ALL databases...");
+
+    // 1. Dynamically find all unique databases from your CLIENT_CONFIGS
+    const databasesToSync = new Set();
+    for (const client of Object.values(CLIENT_CONFIGS)) {
+        for (const rule of client.access) {
+            databasesToSync.add(rule.database);
+        }
+    }
+
+    const dbList = Array.from(databasesToSync);
+    const results = {};
+
+    // 2. Loop through every database and force the WAL file to merge
+    for (const dbName of dbList) {
+        console.log(`⏳ Merging WAL file into main DB for: ${dbName}.db...`);
+
+        const db = await dbManager.getDb(dbName);
+
+        // Run the TRUNCATE checkpoint command for this specific database
+        await new Promise((resolve, reject) => {
+            db.run("PRAGMA wal_checkpoint(TRUNCATE);", function (err) {
+                if (err) {
+                    console.error(`❌ Checkpoint failed for ${dbName}:`, err);
+                    return reject(err);
+                }
+                resolve();
+            });
+        });
+
+        results[dbName] = "Merged and Truncated successfully ✅";
+        console.log(`✅ ${dbName}.db is now fully merged and safe!`);
+    }
 
     // Step 1: Add all changes
     exec('git add .', (err) => {
