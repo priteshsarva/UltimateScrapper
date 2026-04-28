@@ -3,7 +3,8 @@ import { dbManager } from '../models/dbManager.js';
 import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites } from "../core/wpBulkSafeSync.js";
 import { scrapeSingleProductMethodA } from '../core/strategies/liveMethodA.js';
 import { scrapeSingleProductMethodB } from '../core/strategies/LiveMethodB.js';
-
+import sqlite3 from 'sqlite3';
+import path from 'path';
 import { CLIENT_CONFIGS } from '../config/clients.js';
 import { SITES_REGISTRY } from '../config/sites.js';
 
@@ -371,7 +372,13 @@ router.get('/update-single-product', async (req, res) => {
         let targetDbName = null;
 
         for (const dbName of dbList) {
-            const db = await dbManager.getDb(dbName);
+            // 👇 FIX: Open a completely FRESH connection just for this API request!
+            // This bypasses the dbManager queue so it doesn't get stuck behind the bulk scraper.
+            const dbPath = path.resolve(`./databases/${dbName}.db`);
+            const db = new sqlite3.Database(dbPath);
+            
+            // Allow this specific connection to wait patiently in WAL mode
+            db.run("PRAGMA busy_timeout = 30000");
 
             let sql = "";
             let param = "";
@@ -383,10 +390,20 @@ router.get('/update-single-product', async (req, res) => {
                 sql = "SELECT * FROM PRODUCTS WHERE productUrl = ?";
                 param = productUrl;
             }
+            console.log(`🔎[${dbName}.db] Searching via independent connection for: ${param}`);
 
-            localProduct = await new Promise(resolve => {
-                db.get(sql, [param], (err, row) => resolve(row));
+            localProduct = await new Promise((resolve, reject) => {
+                db.get(sql, [param], (err, row) => {
+                    if (err) {
+                        console.error(`❌ [${dbName}.db] Database Error:`, err.message);
+                        return reject(err);
+                    }
+                    resolve(row);
+                });
             });
+
+            // Close this temporary connection to keep memory clean
+            db.close();
 
             if (localProduct) {
                 targetDbName = dbName;
