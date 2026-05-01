@@ -523,82 +523,108 @@ router.get('/retry-failed-syncs', async (req, res) => {
         const uniqueIds = Array.from(failedIds);
 
         if (uniqueIds.length === 0) {
-            // Empty file with no valid IDs
             fs.writeFileSync(failFilePath, ''); // Clear it
             return res.status(200).json({ message: "File exists but no valid Product IDs were found. Cleared file." });
         }
 
-        console.log(`\n🔄 [RETRY SYNC] Found ${uniqueIds.length} unique failed products. Attempting to resync...`);
+        console.log(`\n🔄 [RETRY SYNC] Found ${uniqueIds.length} unique failed products. Preparing background batch sync...`);
 
         // 3. EMPTY THE FILE BEFORE WE RETRY!
-        // If they fail again, syncProductToAllSites will automatically write them back into the clean file.
+        // If they fail again, syncProductToAllSites will automatically write them back to the clean file.
         fs.writeFileSync(failFilePath, ''); 
 
-        // 4. Figure out which SQLite databases to check
-        const databasesToCheck = new Set();
-        for (const client of Object.values(CLIENT_CONFIGS)) {
-            for (const rule of client.access) {
-                databasesToCheck.add(rule.database);
-            }
-        }
-        const dbList = Array.from(databasesToCheck);
-
-        let successCount = 0;
-        let failCount = 0;
-
-        // 5. Loop through IDs, find them locally, and trigger the Sync!
-        for (const productId of uniqueIds) {
-            let localProduct = null;
-            let targetDbName = null;
-
-            // Search local DBs for this product
-            for (const dbName of dbList) {
-                const db = await dbManager.getDb(dbName);
-                localProduct = await new Promise((resolve) => {
-                    db.get("SELECT * FROM PRODUCTS WHERE productId = ?", [productId], (err, row) => resolve(row));
-                });
-
-                if (localProduct) {
-                    targetDbName = dbName;
-                    break;
-                }
-            }
-
-            if (localProduct) {
-                console.log(`🚀 Retrying Sync for ID: ${productId} (from ${targetDbName}.db)`);
-                // Add the dbName so the smart router knows where it belongs
-                localProduct.dbName = targetDbName;
-                
-                // Fire the sync!
-                const isSuccess = await syncProductToAllSites(localProduct, productId);
-                
-                if (isSuccess) successCount++;
-                else failCount++;
-
-                // Give WooCommerce 2 seconds to breathe between retries
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            } else {
-                console.warn(`⚠️ Could not find ProductID ${productId} in any local DB.`);
-                // Write it back to the file so we don't lose track of it
-                fs.appendFileSync(failFilePath, `${new Date().toLocaleString()} | ProductID: ${productId} | Error: Missing from local SQLite DB\n`);
-                failCount++;
-            }
-        }
-
-        console.log(`🎉 Retry process complete! Success: ${successCount} | Failed again: ${failCount}`);
-
+        // 4. Respond to the API request immediately to prevent 504 Timeout
         res.status(200).json({
             status: "success",
-            message: "Retry process finished.",
-            totalRetried: uniqueIds.length,
-            success: successCount,
-            failedAgain: failCount,
-            note: failCount > 0 ? "Check failed_syncs.txt for the items that failed again." : "All caught up!"
+            message: `Background retry process started for ${uniqueIds.length} products. Check server logs for progress.`,
+            totalRetried: uniqueIds.length
         });
+
+        // =====================================
+        // 5. BACKGROUND BATCH PROCESSING
+        // =====================================
+        (async () => {
+            try {
+                // Figure out which SQLite databases to check
+                const databasesToCheck = new Set();
+                for (const client of Object.values(CLIENT_CONFIGS)) {
+                    for (const rule of client.access) {
+                        databasesToCheck.add(rule.database);
+                    }
+                }
+                const dbList = Array.from(databasesToCheck);
+
+                let successCount = 0;
+                let failCount = 0;
+
+                // ⚠️ Set safe batch size and delay
+                const batchSize = 3;  // Process 3 products simultaneously
+                const delayMs = 1000; // Wait 2 seconds between batches
+
+                for (let i = 0; i < uniqueIds.length; i += batchSize) {
+                    const batchIds = uniqueIds.slice(i, i + batchSize);
+                    console.log(`\n🚀 Retrying Batch ${Math.floor(i / batchSize) + 1} (${batchIds.length} products)...`);
+
+                    // Process the products in this batch concurrently
+                    const batchPromises = batchIds.map(async (productId) => {
+                        let localProduct = null;
+                        let targetDbName = null;
+
+                        // Search local DBs for this product
+                        for (const dbName of dbList) {
+                            const db = await dbManager.getDb(dbName);
+                            localProduct = await new Promise((resolve) => {
+                                db.get("SELECT * FROM PRODUCTS WHERE productId = ?", [productId], (err, row) => resolve(row));
+                            });
+
+                            if (localProduct) {
+                                targetDbName = dbName;
+                                break;
+                            }
+                        }
+
+                        if (localProduct) {
+                            // Add the dbName so the smart router knows where it belongs
+                            localProduct.dbName = targetDbName;
+                            
+                            // Fire the sync!
+                            const isSuccess = await syncProductToAllSites(localProduct, productId);
+                            
+                            if (isSuccess) {
+                                successCount++;
+                            } else {
+                                failCount++;
+                            }
+                        } else {
+                            console.warn(`⚠️ Could not find ProductID ${productId} in any local DB.`);
+                            // Write it back to the file so we don't lose track of it
+                            fs.appendFileSync(failFilePath, `${new Date().toLocaleString()} | ProductID: ${productId} | Error: Missing from local SQLite DB\n`);
+                            failCount++;
+                        }
+                    });
+
+                    // Wait for the batch of 3 to finish syncing
+                    await Promise.all(batchPromises);
+
+                    // Delay before starting the next batch to let WooCommerce breathe
+                    console.log(`⏳ Batch complete. Letting servers breathe for ${delayMs / 1000} seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+
+                console.log(`\n🎉 Background Retry process complete!`);
+                console.log(`✅ Success: ${successCount} | ❌ Failed again: ${failCount}`);
+                if (failCount > 0) console.log(`Check 'failed_syncs.txt' for the items that failed again.`);
+
+            } catch (bgError) {
+                console.error("❌ Error during background retry processing:", bgError);
+            }
+        })();
 
     } catch (error) {
         console.error("❌ Error in retry route:", error);
-        res.status(500).json({ error: "Internal server error", details: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error", details: error.message });
+        }
     }
 });
 
