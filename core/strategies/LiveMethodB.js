@@ -95,10 +95,10 @@ export async function scrapeSingleProductMethodB(productUrl, dbName) {
             };
         });
 
-        console.log(`✅ Raw Extracted Data:`, freshData);
+        console.log('✅ Raw Extracted Data:', freshData);
 
     } catch (error) {
-        console.error(`❌[LiveMethodB] Scraping failed:`, error.message);
+        console.error('❌[LiveMethodB] Scraping failed:', error.message);
         throw error;
     } finally {
         if (browser) await browser.close();

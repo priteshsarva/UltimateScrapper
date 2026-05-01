@@ -7,10 +7,17 @@ import { dbManager } from '../models/dbManager.js';
 import { CLIENT_CONFIGS } from '../config/clients.js';
 import { SITES_REGISTRY } from '../config/sites.js';
 import { log } from "console";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const WP_URL = process.env.WP_URL;
 const WP_CONSUMER_KEY = process.env.WP_CONSUMER_KEY;
 const WP_CONSUMER_SECRET = process.env.WP_CONSUMER_SECRET;
+
+// Setup __dirname for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const WP_SITES = [
   {
@@ -48,18 +55,43 @@ export async function syncProductToAllSites(product, productId = null) {
 
   if (eligibleSites.length === 0) {
     console.log(`⚠️ No eligible sites found for product ${product.productName} (Type: ${databaseType})`);
-    return;
+    return true; // Technically not a sync failure
   }
 
   console.log(`🚀 Syncing[${databaseType}] product '${product.productName}' to ${eligibleSites.length} site(s): ${eligibleSites.map(s => s.name).join(", ")}`);
 
   // 3. Only sync to the filtered list of eligible sites!
-  const syncPromises = eligibleSites.map((site) => {
-    // console.log(site);
-    return upsertProductSafe(product, site, productId)
-  });
 
-  await Promise.all(syncPromises);
+  // const syncPromises = eligibleSites.map((site) => {
+  //   // console.log(site);
+  //   return upsertProductSafe(product, site, productId)
+  // });
+
+  // await Promise.all(syncPromises);
+
+  let isSuccess = true;
+  for (const site of eligibleSites) {
+    const result = await upsertProductSafe(product, site, productId);
+
+    if (!result) {
+      isSuccess = false; // Mark as failed
+      console.log(`⚠️ Sync failed for ID ${productId} on[${site.name}]. Saving to failed list...`);
+
+      // 👇 WRITE TO TEXT FILE SPECIFICALLY FOR THIS SITE
+      // Format: [Date] | ProductID | SiteName | URL
+      const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl}\n`;
+      fs.appendFileSync(path.join(__dirname, '../../failed_syncs.txt'), logEntry);
+      console.log("error saved");
+      
+    }
+
+    // Small pause between site uploads
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+
+  return isSuccess;
+
 }
 
 
@@ -407,11 +439,14 @@ export async function upsertProductSafe(product, site, productId = null) {
     const data = await res.json();
     if (res.ok) {
       console.log(`✅[${site.name}] ${existing ? "Updated" : "Created"}: ${data.name} (ID: ${data.id})`);
+      return true; // 👈 CRITICAL: You must return true here!
     } else {
       console.error("❌ [${site.name}] Error creating/updating product:", data);
+       return false; // 👈 And return false here
     }
   } catch (err) {
     console.error("❌ [${site.name}] Unexpected error:", err);
+     return false; // 👈 And return false here
   }
 }
 

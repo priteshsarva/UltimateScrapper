@@ -4,6 +4,7 @@ import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SI
 import { scrapeSingleProductMethodA } from '../core/strategies/liveMethodA.js';
 import { scrapeSingleProductMethodB } from '../core/strategies/LiveMethodB.js';
 import sqlite3 from 'sqlite3';
+import fs from 'fs';
 import path from 'path';
 import { CLIENT_CONFIGS } from '../config/clients.js';
 import { SITES_REGISTRY } from '../config/sites.js';
@@ -395,7 +396,7 @@ router.get('/update-single-product', async (req, res) => {
             localProduct = await new Promise((resolve, reject) => {
                 db.get(sql, [param], (err, row) => {
                     if (err) {
-                        console.error(`❌ [${dbName}.db] Database Error:`, err.message);
+                        console.error(`❌ [${dbName}.db] Database Error: ${err.message}`);
                         return reject(err);
                     }
                     resolve(row);
@@ -493,6 +494,110 @@ router.get('/update-single-product', async (req, res) => {
 
     } catch (error) {
         console.error("❌ Error in single product update route:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
+    }
+});
+
+router.get('/retry-failed-syncs', async (req, res) => {
+    try {
+        const failFilePath = path.join(process.cwd(), 'failed_syncs.txt');
+
+        // 1. Check if the file exists
+        if (!fs.existsSync(failFilePath)) {
+            return res.status(200).json({ message: "No failed syncs found. The file is empty or missing!" });
+        }
+
+        // 2. Read the file and extract unique Product IDs
+        const fileContent = fs.readFileSync(failFilePath, 'utf-8');
+        const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+        
+        const failedIds = new Set();
+        lines.forEach(line => {
+            // Extract the ID using Regex (Looks for "ProductID: 12345")
+            const match = line.match(/ProductID:\s*(\d+)/);
+            if (match && match[1]) {
+                failedIds.add(match[1]);
+            }
+        });
+
+        const uniqueIds = Array.from(failedIds);
+
+        if (uniqueIds.length === 0) {
+            // Empty file with no valid IDs
+            fs.writeFileSync(failFilePath, ''); // Clear it
+            return res.status(200).json({ message: "File exists but no valid Product IDs were found. Cleared file." });
+        }
+
+        console.log(`\n🔄 [RETRY SYNC] Found ${uniqueIds.length} unique failed products. Attempting to resync...`);
+
+        // 3. EMPTY THE FILE BEFORE WE RETRY!
+        // If they fail again, syncProductToAllSites will automatically write them back into the clean file.
+        fs.writeFileSync(failFilePath, ''); 
+
+        // 4. Figure out which SQLite databases to check
+        const databasesToCheck = new Set();
+        for (const client of Object.values(CLIENT_CONFIGS)) {
+            for (const rule of client.access) {
+                databasesToCheck.add(rule.database);
+            }
+        }
+        const dbList = Array.from(databasesToCheck);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        // 5. Loop through IDs, find them locally, and trigger the Sync!
+        for (const productId of uniqueIds) {
+            let localProduct = null;
+            let targetDbName = null;
+
+            // Search local DBs for this product
+            for (const dbName of dbList) {
+                const db = await dbManager.getDb(dbName);
+                localProduct = await new Promise((resolve) => {
+                    db.get("SELECT * FROM PRODUCTS WHERE productId = ?", [productId], (err, row) => resolve(row));
+                });
+
+                if (localProduct) {
+                    targetDbName = dbName;
+                    break;
+                }
+            }
+
+            if (localProduct) {
+                console.log(`🚀 Retrying Sync for ID: ${productId} (from ${targetDbName}.db)`);
+                // Add the dbName so the smart router knows where it belongs
+                localProduct.dbName = targetDbName;
+                
+                // Fire the sync!
+                const isSuccess = await syncProductToAllSites(localProduct, productId);
+                
+                if (isSuccess) successCount++;
+                else failCount++;
+
+                // Give WooCommerce 2 seconds to breathe between retries
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            } else {
+                console.warn(`⚠️ Could not find ProductID ${productId} in any local DB.`);
+                // Write it back to the file so we don't lose track of it
+                fs.appendFileSync(failFilePath, `${new Date().toLocaleString()} | ProductID: ${productId} | Error: Missing from local SQLite DB\n`);
+                failCount++;
+            }
+        }
+
+        console.log(`🎉 Retry process complete! Success: ${successCount} | Failed again: ${failCount}`);
+
+        res.status(200).json({
+            status: "success",
+            message: "Retry process finished.",
+            totalRetried: uniqueIds.length,
+            success: successCount,
+            failedAgain: failCount,
+            note: failCount > 0 ? "Check failed_syncs.txt for the items that failed again." : "All caught up!"
+        });
+
+    } catch (error) {
+        console.error("❌ Error in retry route:", error);
         res.status(500).json({ error: "Internal server error", details: error.message });
     }
 });
