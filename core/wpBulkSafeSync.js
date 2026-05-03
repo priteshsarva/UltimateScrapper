@@ -82,8 +82,8 @@ export async function syncProductToAllSites(product, productId = null) {
       const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl} | Error: ${errorMsg}\n`;
       // fs.appendFileSync(path.join(__dirname, '../../failed_syncs.txt'), logEntry);
 
-      const failFilePath = path.join(process.cwd(), 'failed_syncs.txt');
-      fs.appendFileSync(failFilePath, logEntry);
+      // const failFilePath = path.join(process.cwd(), 'failed_syncs.txt');
+      // fs.appendFileSync(failFilePath, logEntry);
       console.log("error saved");
 
     }
