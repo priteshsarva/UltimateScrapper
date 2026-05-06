@@ -79,11 +79,8 @@ export async function syncProductToAllSites(product, productId = null) {
 
       // 👇 WRITE TO TEXT FILE SPECIFICALLY FOR THIS SITE
       // Format: [Date] | ProductID | SiteName | URL
-      const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl} | Error: ${errorMsg}\n`;
+      const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl}\n`;
       fs.appendFileSync(path.join(__dirname, '../../failed_syncs.txt'), logEntry);
-
-      // const failFilePath = path.join(process.cwd(), 'failed_syncs.txt');
-      // fs.appendFileSync(failFilePath, logEntry);
       console.log("error saved");
 
     }
@@ -449,7 +446,7 @@ export async function upsertProductSafe(product, site, productId = null) {
     }
   } catch (err) {
     console.error("❌ [${site.name}] Unexpected error:", err);
-     return { success: false, error: err.message }; // 👈 Extracting Node Error
+    return { success: false, error: err.message }; // 👈 Extracting Node Error
   }
 }
 
