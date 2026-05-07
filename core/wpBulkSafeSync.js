@@ -73,14 +73,18 @@ export async function syncProductToAllSites(product, productId = null) {
   for (const site of eligibleSites) {
     const result = await upsertProductSafe(product, site, productId);
 
-    if (!result) {
+    if (!result.success) {
       isSuccess = false; // Mark as failed
       console.log(`⚠️ Sync failed for ID ${productId} on[${site.name}]. Saving to failed list...`);
 
       // 👇 WRITE TO TEXT FILE SPECIFICALLY FOR THIS SITE
       // Format: [Date] | ProductID | SiteName | URL
       const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl}\n`;
-      fs.appendFileSync(path.join(__dirname, '../../failed_syncs.txt'), logEntry);
+      // fs.appendFileSync(path.join(__dirname, '../../failed_syncs.txt'), logEntry);
+
+      const failFilePath = path.join(process.cwd(), 'failed_syncs.txt');
+      fs.appendFileSync(failFilePath, logEntry);
+
       console.log("error saved");
 
     }
