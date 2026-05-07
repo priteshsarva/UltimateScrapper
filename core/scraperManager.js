@@ -41,12 +41,13 @@ export async function executeScraper(siteId) {
         console.error("Scraper failed for " + siteId + ":", err.message);
     } finally {
         console.log(`Finished process for ${config.name}`);
+        // 3. 👇 NEW: Safely close the database connection to unlock files for backups!
+        try {
+            await dbManager.closeDb(config.category);
+        } catch (closeErr) {
+            console.error("⚠️ Failed to close DB after scraping:", closeErr);
+        }
     }
 
-    // 3. 👇 NEW: Safely close the database connection to unlock files for backups!
-    try {
-        await dbManager.closeDb(config.category);
-    } catch (closeErr) {
-        console.error("⚠️ Failed to close DB after scraping:", closeErr);
-    }
+
 }
