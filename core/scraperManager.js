@@ -10,73 +10,73 @@ import { promisify } from 'util';
 
 puppeteer.use(StealthPlugin());
 
-export async function executeScraper(siteId) {
-    const config = SITES_REGISTRY.find(s => s.id === siteId);
-    if (!config) throw new Error("Site ID not found");
-
-    // 1. Get the correct Database (Shoes vs Watches)
-    const DB = await dbManager.getDb(config.category);
-    // Promisify DB methods for easier async/await usage
-    DB.run = promisify(DB.run);
-    DB.get = promisify(DB.get);
-
-    // 2. Launch Browser
-    // const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-    // const page = await browser.newPage();
-
-    try {
-        // 3. Select Strategy
-        if (config.method === "METHOD_A") {
-            // This is your Cartpe logic
-            console.log("METHOD_A");
-            await fetchDataa(config.base_url, DB);
-        }
-        else if (config.method === "METHOD_B") {
-            // This is your jdwebnship logic
-            console.log("METHOD_B");
-            await fetchDataaB(config.base_url, DB);
-        }
-
-    } catch (err) {
-        console.error("Scraper failed for " + siteId + ":", err.message);
-    } finally {
-        console.log(`Finished process for ${config.name}`);
- 
-    }
-
-
-}
-
-
-
 // export async function executeScraper(siteId) {
 //     const config = SITES_REGISTRY.find(s => s.id === siteId);
 //     if (!config) throw new Error("Site ID not found");
 
 //     // 1. Get the correct Database (Shoes vs Watches)
 //     const DB = await dbManager.getDb(config.category);
+//     // Promisify DB methods for easier async/await usage
+//     DB.run = promisify(DB.run);
+//     DB.get = promisify(DB.get);
+
+//     // 2. Launch Browser
+//     // const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+//     // const page = await browser.newPage();
 
 //     try {
-//         // 2. Select Strategy
+//         // 3. Select Strategy
 //         if (config.method === "METHOD_A") {
-//             console.log("🚀 Running METHOD_A...");
+//             // This is your Cartpe logic
+//             console.log("METHOD_A");
 //             await fetchDataa(config.base_url, DB);
 //         }
 //         else if (config.method === "METHOD_B") {
-//             console.log("🚀 Running METHOD_B...");
+//             // This is your jdwebnship logic
+//             console.log("METHOD_B");
 //             await fetchDataaB(config.base_url, DB);
 //         }
 
 //     } catch (err) {
-//       console.error("Scraper failed for " + siteId + ":", err.message);
+//         console.error("Scraper failed for " + siteId + ":", err.message);
 //     } finally {
-//         console.log(`🏁 Finished process for ${config.name}`);
-        
-//         // 3. 👇 NEW: Safely close the database connection to unlock files for backups!
-//         try {
-//             await dbManager.closeDb(config.category);
-//         } catch (closeErr) {
-//             console.error("⚠️ Failed to close DB after scraping:", closeErr);
-//         }
+//         console.log(`Finished process for ${config.name}`);
+ 
 //     }
+
+
 // }
+
+
+
+export async function executeScraper(siteId) {
+    const config = SITES_REGISTRY.find(s => s.id === siteId);
+    if (!config) throw new Error("Site ID not found");
+
+    // 1. Get the correct Database (Shoes vs Watches)
+    const DB = await dbManager.getDb(config.category);
+
+    try {
+        // 2. Select Strategy
+        if (config.method === "METHOD_A") {
+            console.log("🚀 Running METHOD_A...");
+            await fetchDataa(config.base_url, DB);
+        }
+        else if (config.method === "METHOD_B") {
+            console.log("🚀 Running METHOD_B...");
+            await fetchDataaB(config.base_url, DB);
+        }
+
+    } catch (err) {
+      console.error("Scraper failed for " + siteId + ":", err.message);
+    } finally {
+        console.log(`🏁 Finished process for ${config.name}`);
+        
+        // 3. 👇 NEW: Safely close the database connection to unlock files for backups!
+        try {
+            await dbManager.closeDb(config.category);
+        } catch (closeErr) {
+            console.error("⚠️ Failed to close DB after scraping:", closeErr);
+        }
+    }
+}
