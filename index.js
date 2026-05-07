@@ -128,79 +128,85 @@ app.get('/', async (req, res) => {
 app.use('/product', tenantIdentify, productRoutes);
 
 app.get('/updateserver', async (req, res) => {
-    console.log("working");
+    try {
+        console.log("working");
 
-    const now = new Date();
-    const dateTimeString = now.toISOString().replace('T', ' ').split('.')[0]; // Format: YYYY-MM-DD HH:mm:ss
-    const commitMessage = `DB updated on ${dateTimeString}`;
+        const now = new Date();
+        const dateTimeString = now.toISOString().replace('T', ' ').split('.')[0];
+        const commitMessage = `DB updated on ${dateTimeString}`;
 
-    console.log("🧹 Manual Checkpoint triggered for ALL databases...");
+        console.log("🧹 Passive Checkpoint & Backup triggered for ALL databases...");
 
-    // 1. Dynamically find all unique databases from your CLIENT_CONFIGS
-    const databasesToSync = new Set();
-    for (const client of Object.values(CLIENT_CONFIGS)) {
-        for (const rule of client.access) {
-            databasesToSync.add(rule.database);
+        // 1. Dynamically find all unique databases from your CLIENT_CONFIGS
+        const databasesToSync = new Set();
+        for (const client of Object.values(CLIENT_CONFIGS)) {
+            for (const rule of client.access) {
+                databasesToSync.add(rule.database);
+            }
         }
-    }
+        const dbList = Array.from(databasesToSync);
 
-    const dbList = Array.from(databasesToSync);
-    const results = {};
+        // 2. Perform a GENTLE (PASSIVE) merge so it doesn't crash any running scrapers!
+        for (const dbName of dbList) {
+            if (dbManager.connections[dbName]) {
+                const db = dbManager.connections[dbName];
 
-    // 2. Loop through every database and force the WAL file to merge
-    for (const dbName of dbList) {
-        console.log(`⏳ Merging WAL file into main DB for: ${dbName}.db...`);
-
-        const db = await dbManager.getDb(dbName);
-
-        // Run the TRUNCATE checkpoint command for this specific database
-        await new Promise((resolve, reject) => {
-            db.run("PRAGMA wal_checkpoint(TRUNCATE);", function (err) {
-                if (err) {
-                    console.error(`❌ Checkpoint failed for ${dbName}:`, err);
-                    return reject(err);
-                }
-                resolve();
-            });
-        });
-
-        results[dbName] = "Merged and Truncated successfully ✅";
-        console.log(`✅ ${dbName}.db is now fully merged and safe!`);
-    }
-
-    // Step 1: Add all changes
-    exec('git add .', (err) => {
-        if (err) {
-            console.error('❌ Error adding files:', err);
-            return;
+                await new Promise((resolve) => {
+                    // PASSIVE merges what it can without locking or throwing SQLITE_BUSY
+                    db.run("PRAGMA wal_checkpoint(PASSIVE);", function (err) {
+                        if (err) {
+                            console.log(`⚠️ Note: ${dbName} is highly active. Partially merged.`);
+                        } else {
+                            console.log(`✅ ${dbName}.db passively merged!`);
+                        }
+                        resolve(); // We resolve even if there's an error so the backup continues
+                    });
+                });
+            }
         }
-        console.log('✅ Changes staged.');
 
-        // Step 2: Commit with message
-        exec(`git commit -m "${commitMessage}"`, (err) => {
+        // 3. Respond to the API immediately so the browser/Postman doesn't timeout
+        res.status(200).json({ status: 200, message: `Server updating and backing up to Git in the background...` });
+
+        // 4. Run Git commands
+        // Because we didn't close the DB, Git will backup both the .db AND the .db-wal files!
+        // This is perfectly safe. If you ever restore the backup, SQLite will auto-read the .wal file.
+        exec('git add .', (err) => {
             if (err) {
-                if (err.message.includes('nothing to commit')) {
-                    console.log('ℹ️ No changes to commit.');
-                    return;
-                }
-                console.error('❌ Error committing:', err);
+                console.error('❌ Error adding files:', err);
                 return;
             }
-            console.log('✅ Changes committed.');
+            console.log('✅ Changes staged.');
 
-            // Step 4: Push to remote
-            exec('git push', (err) => {
-                if (err) {
-                    console.error('❌ Error pushing to remote:', err);
+            exec(`git commit -m "${commitMessage}"`, (err) => {
+                if (err && !err.message.includes('nothing to commit')) {
+                    console.error('❌ Error committing:', err);
                     return;
                 }
-                console.log('✅ Changes pushed to remote repository.');
+                
+                if (err && err.message.includes('nothing to commit')) {
+                    console.log('ℹ️ No changes to commit.');
+                } else {
+                    console.log('✅ Changes committed.');
+                }
+
+                exec('git push', (err) => {
+                    if (err) {
+                        console.error('❌ Error pushing to remote:', err);
+                    } else {
+                        console.log('✅ Changes pushed to remote repository.');
+                    }
+                });
             });
         });
-    });
 
-    res.status(200).json({ status: 200, message: `Server updated` });
-})
+    } catch (error) {
+        console.error("❌ Error in updateserver:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Update failed", details: error.message });
+        }
+    }
+});
 
 app.get('/devproductupdates', async (req, res) => {
     res.set('content-type', 'application/json');

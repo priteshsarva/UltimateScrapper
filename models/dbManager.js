@@ -28,7 +28,7 @@ class DbManager {
                 if (err) return reject(err);
 
                 // db.run("PRAGMA journal_mode = DELETE"); // Write-Ahead Logging (Allows parallel read/write)
-                 db.run("PRAGMA journal_mode = WAL"); 
+                db.run("PRAGMA journal_mode = WAL");
                 db.run("PRAGMA busy_timeout = 5000"); // Wait up to 5 seconds if DB is busy
                 try {
                     // Enable Foreign Keys
@@ -46,6 +46,30 @@ class DbManager {
             });
         });
     }
+
+
+    // Add this inside the DbManager class
+    async closeDb(category) {
+        if (!category) return;
+        const cat = category.toLowerCase();
+        const db = this.connections[cat];
+
+        if (db) {
+            return new Promise((resolve, reject) => {
+                db.close((err) => {
+                    if (err) {
+                        console.error("❌ Error closing " + cat + ".db:", err.message);
+                        return reject(err);
+                    }
+                    // Remove the connection from the cache so it forces a fresh open next time
+                    delete this.connections[cat];
+                    console.log(`🔒 [DB Manager] Safely closed connection to: ${cat}.db`);
+                    resolve();
+                });
+            });
+        }
+    }
+
 
     // Helper to turn db.run into a promise
     async runQuery(db, sql) {
@@ -101,5 +125,7 @@ class DbManager {
         }
     }
 }
+
+
 
 export const dbManager = new DbManager();

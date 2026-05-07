@@ -29,17 +29,24 @@ export async function executeScraper(siteId) {
         if (config.method === "METHOD_A") {
             // This is your Cartpe logic
             console.log("METHOD_A");
-            await fetchDataa(config.base_url,DB);
+            await fetchDataa(config.base_url, DB);
         }
         else if (config.method === "METHOD_B") {
             // This is your jdwebnship logic
             console.log("METHOD_B");
-            await fetchDataaB(config.base_url,DB);
+            await fetchDataaB(config.base_url, DB);
         }
 
     } catch (err) {
-       console.error("Scraper failed for " + siteId + ":", err.message);
+        console.error("Scraper failed for " + siteId + ":", err.message);
     } finally {
         console.log(`Finished process for ${config.name}`);
+    }
+
+    // 3. 👇 NEW: Safely close the database connection to unlock files for backups!
+    try {
+        await dbManager.closeDb(config.category);
+    } catch (closeErr) {
+        console.error("⚠️ Failed to close DB after scraping:", closeErr);
     }
 }
