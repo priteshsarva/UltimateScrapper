@@ -262,7 +262,8 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             });
 
             // for temporary disable 
-            await viewMore(page, productCount)
+            // await viewMore(page, productCount)
+            await viewMore(page);
             console.log("After view more");
 
             const productElements = await page.evaluate(() => {
@@ -694,18 +695,67 @@ async function updateProduct(product, DB) {
     }
 }
 
-async function viewMore(page, productCount) {
-    const count = Math.ceil(productCount / 12);
+// async function viewMore(page, productCount) {
+//     const count = Math.ceil(productCount / 12);
+//     const viewMoreButtonSelector = '#loadmore_btn_category_product';
+
+//     await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
+//     for (let i = 0; i < count; i++) {
+//         try {
+//             await page.click(viewMoreButtonSelector);
+//             console.log(`Button clicked = ${i}`);
+//             await delay(4000);
+//         } catch (error) {
+//             // <!-- // console.error('Error clicking "View More" button:', error + i); -->
+//         }
+//     }
+// }
+
+
+async function viewMore(page) {
+    let clickCount = 0;
+    let hasMoreButton = true;
     const viewMoreButtonSelector = '#loadmore_btn_category_product';
 
-    await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
-    for (let i = 0; i < count; i++) {
+    console.log("🔄 Starting to load products. Monitoring for 'Sold Out' items...");
+
+    while (hasMoreButton) {
         try {
-            await page.click(viewMoreButtonSelector);
-            console.log(`Button clicked = ${i}`);
-            await delay(4000);
+            // 1. Check if ANY product currently on the screen says "Sold Out"
+            const foundSoldOut = await page.evaluate(() => {
+                const buttons = Array.from(document.querySelectorAll('#product_list_div button'));
+                return buttons.some(btn => btn.innerText.trim().toLowerCase().includes('sold out'));
+            });
+
+            if (foundSoldOut) {
+                console.log(`🛑 "Sold Out" product detected! Stopping 'View More' clicks early to save time.`);
+                break; // Instantly exits the loop and moves on to scraping!
+            }
+
+            // 2. If no "Sold Out" items, try to click "Load More"
+            const buttonClicked = await page.evaluate((selector) => {
+                const btn = document.querySelector(selector);
+                // Check if button exists, is visible, and isn't hidden by display:none
+                if (btn && btn.offsetParent !== null && !btn.disabled && btn.style.display !== 'none') {
+                    btn.click();
+                    return true;
+                }
+                return false;
+            }, viewMoreButtonSelector);
+
+            if (buttonClicked) {
+                clickCount++;
+                console.log(`👉 "Load More" button clicked = ${clickCount}`);
+                // Wait 4 seconds for new products to load into the DOM
+                await delay(4000);
+            } else {
+                console.log(`✅ "Load More" button disappeared. Reached the end of the list.`);
+                hasMoreButton = false;
+            }
+
         } catch (error) {
-            // <!-- // console.error('Error clicking "View More" button:', error + i); -->
+            console.error('⚠️ Error during "Load More" sequence:', error.message);
+            hasMoreButton = false; // Break loop safely if something goes wrong
         }
     }
 }
