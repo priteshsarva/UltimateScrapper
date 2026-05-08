@@ -237,7 +237,7 @@ app.get('/devproductupdates', async (req, res) => {
     const formattedDate = date.toLocaleString('en-IN', options);
     try {
         // fetchDataa(baseUrls);
-        // gitAutoCommitAndPush();
+        gitAutoCommitAndPush();
         res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
 
         for (const site of SITES_REGISTRY) {
@@ -247,7 +247,7 @@ app.get('/devproductupdates', async (req, res) => {
             // await executeScraper(site.searchKey);
 
         }
-        // gitAutoCommitAndPush();
+        gitAutoCommitAndPush();
 
     } catch (error) {
         console.error('Error:', error.message);
