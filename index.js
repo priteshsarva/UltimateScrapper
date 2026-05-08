@@ -135,9 +135,9 @@ app.get('/updateserver', async (req, res) => {
         const dateTimeString = now.toISOString().replace('T', ' ').split('.')[0];
         const commitMessage = `DB updated on ${dateTimeString}`;
 
-        console.log("🧹 Passive Checkpoint & Backup triggered for ALL databases...");
+        console.log("🧹 Smart Checkpoint & Backup triggered for ALL databases...");
 
-        // 1. Dynamically find all unique databases from your CLIENT_CONFIGS
+        // 1. Dynamically find all unique databases
         const databasesToSync = new Set();
         for (const client of Object.values(CLIENT_CONFIGS)) {
             for (const rule of client.access) {
@@ -146,31 +146,35 @@ app.get('/updateserver', async (req, res) => {
         }
         const dbList = Array.from(databasesToSync);
 
-        // 2. Perform a GENTLE (PASSIVE) merge so it doesn't crash any running scrapers!
+        // 2. Perform a SMART merge (Try TRUNCATE first, fallback to PASSIVE if busy)
         for (const dbName of dbList) {
             if (dbManager.connections[dbName]) {
                 const db = dbManager.connections[dbName];
 
                 await new Promise((resolve) => {
-                    // PASSIVE merges what it can without locking or throwing SQLITE_BUSY
-                    db.run("PRAGMA wal_checkpoint(PASSIVE);", function (err) {
+                    // Try the aggressive TRUNCATE first to shrink WAL to 0 bytes
+                    db.run("PRAGMA wal_checkpoint(TRUNCATE);", function (err) {
                         if (err) {
-                            console.log(`⚠️ Note: ${dbName} is highly active. Partially merged.`);
+                            console.log(`⚠️ ${dbName} is busy. Falling back to PASSIVE merge...`);
+                            // Fallback to passive if the scraper is currently locking it
+                            db.run("PRAGMA wal_checkpoint(PASSIVE);", () => resolve());
                         } else {
-                            console.log(`✅ ${dbName}.db passively merged!`);
+                            console.log(`✅ ${dbName}.db fully merged and WAL truncated to 0 bytes!`);
+                            resolve(); 
                         }
-                        resolve(); // We resolve even if there's an error so the backup continues
                     });
                 });
             }
         }
 
-        // 3. Respond to the API immediately so the browser/Postman doesn't timeout
+        // 3. Respond to the API immediately
         res.status(200).json({ status: 200, message: `Server updating and backing up to Git in the background...` });
 
-        // 4. Run Git commands
-        // Because we didn't close the DB, Git will backup both the .db AND the .db-wal files!
-        // This is perfectly safe. If you ever restore the backup, SQLite will auto-read the .wal file.
+        // 4. THE FIX: Give the server's Hard Drive 3 seconds to physically finish writing the files
+        console.log("⏳ Waiting 3 seconds for disk I/O to settle before Git commit...");
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // 5. Run Git commands
         exec('git add .', (err) => {
             if (err) {
                 console.error('❌ Error adding files:', err);
@@ -233,7 +237,7 @@ app.get('/devproductupdates', async (req, res) => {
     const formattedDate = date.toLocaleString('en-IN', options);
     try {
         // fetchDataa(baseUrls);
-        gitAutoCommitAndPush();
+        // gitAutoCommitAndPush();
         res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
 
         for (const site of SITES_REGISTRY) {
@@ -243,7 +247,7 @@ app.get('/devproductupdates', async (req, res) => {
             // await executeScraper(site.searchKey);
 
         }
-        gitAutoCommitAndPush();
+        // gitAutoCommitAndPush();
 
     } catch (error) {
         console.error('Error:', error.message);
