@@ -79,8 +79,7 @@ export async function syncProductToAllSites(product, productId = null) {
 
       // 👇 WRITE TO TEXT FILE SPECIFICALLY FOR THIS SITE
       // Format: [Date] | ProductID | SiteName | URL
-      const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl} ${result.error}?| URL: ${result.error}:""\n`;
-
+      const logEntry = `${new Date().toLocaleString()} | ProductID: ${productId} | Site: ${site.name} | URL: ${product.productUrl} | Error: ${result.error}\n`;
       // fs.appendFileSync(path.join(__dirname, '../../failed_syncs.txt'), logEntry);
 
       const failFilePath = path.join(process.cwd(), 'failed_syncs.txt');
@@ -447,11 +446,17 @@ export async function upsertProductSafe(product, site, productId = null) {
       return { success: true }; // 👈 Returning object
     } else {
       console.error("❌ [${site.name}] Error creating/updating product:", data);
-      return { success: false, error: data.message || JSON.stringify(data) }; // 👈 Extracting WP Error
+      const errorMessage = data.message ? `WooCommerce Error: ${data.message}` : JSON.stringify(data);
+      return { success: false, error: errorMessage };
     }
   } catch (err) {
     console.error("❌ [${site.name}] Unexpected error:", err);
-    return { success: false, error: err.message }; // 👈 Extracting Node Error
+     let networkError = err.message;
+    if (err.cause) {
+        networkError += ` (Cause: ${err.cause.code || err.cause.message})`;
+    }
+    
+    return { success: false, error: `Network/Fetch Error: ${networkError}` }; 
   }
 }
 
