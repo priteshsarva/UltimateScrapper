@@ -17,11 +17,12 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
     let freshData = null;
 
     try {
-        const browser = await puppeteer.launch({
+        // 👇 FIXED MEMORY LEAK: Removed 'const' so the outer 'browser' variable gets assigned and properly closed in 'finally'
+        browser = await puppeteer.launch({
             headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
             defaultViewport: { width: 1080, height: 800 },
-            args: [
+            args:[
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
@@ -40,53 +41,85 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         );
 
         console.log(`⏳ Navigating to product page...`);
-        await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        
+        // 👇 Grab the HTTP response to check the status code
+        const response = await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-        console.log(`🕵️‍♂️ Extracting product details...`);
-        freshData = await page.evaluate(() => {
-
-            // --- TITLE ---
-            const titleEl = document.querySelector(".s_product_text > h1");
-            const productName = titleEl ? titleEl.textContent.trim() : null;
-
-            // --- PRICE ---
-            const priceEl = document.querySelector(".s_product_text #price_div h1");
-            let productOriginalPrice = null;
-            if (priceEl && priceEl.textContent) {
-                const match = priceEl.textContent.match(/\d+/);
-                if (match) productOriginalPrice = parseInt(match[0], 10);
-            }
-
-            // --- AVAILABILITY (STOCK) ---
-            let availability = 1; // Default to in stock
-            const outOfStockBadge = document.querySelector('.badge-danger');
-            if (outOfStockBadge && outOfStockBadge.textContent.toLowerCase().includes('out of stock')) {
-                availability = 0;
-            }
-
-            // --- IMAGES ---
-            const imgElements = document.querySelectorAll('#slider .slides .main-image img');
-            const imageUrls = Array.from(imgElements).map(img => img.src).filter(src => src);
-            const featuredimg = imageUrls.length > 0 ? imageUrls[0] : null;
-
-            // --- VIDEO ---
-            const videoEl = document.querySelector('video#myVideo source');
-            const videoUrl = videoEl ? videoEl.src : null;
-
-            // --- SIZES ---
-            const sizeElements = document.querySelectorAll('.size-setup ul li a.size_click');
-            const sizeName = Array.from(sizeElements).map(el => el.textContent.trim());
-
-            return {
-                productName,
-                productOriginalPrice,
-                availability,
-                imageUrl: imageUrls,
-                featuredimg,
-                videoUrl,
-                sizeName
+        // ==========================================
+        // 🚨 404 ERROR HANDLING (PAGE DELETED)
+        // ==========================================
+        if (response && response.status() === 404) {
+            console.log(`⚠️ [LiveMethodA] Product page returned 404 Not Found! Forcing availability to 0.`);
+            
+            // Set dummy data for 404. Smart Merge will keep the old Name/Price/Images but force stock to 0.
+            freshData = {
+                productName: null,
+                productOriginalPrice: null,
+                availability: 0, 
+                imageUrl:[],
+                featuredimg: null,
+                videoUrl: null,
+                sizeName:[]
             };
-        });
+        } else {
+            // Page loaded normally, let's extract the data!
+            console.log(`🕵️‍♂️ Extracting product details...`);
+            freshData = await page.evaluate(() => {
+                
+                // Initialize default values to prevent ReferenceErrors
+                let productName = null;
+                let productOriginalPrice = null;
+                let availability = 0;
+                let imageUrls =[];
+                let featuredimg = null;
+                let videoUrl = null;
+                let sizeName =[];
+
+                // --- TITLE ---
+                const titleEl = document.querySelector(".s_product_text > h1");
+                productName = titleEl ? titleEl.textContent.trim() : null;
+
+                if (titleEl) {
+                    // --- PRICE ---
+                    const priceEl = document.querySelector(".s_product_text #price_div h1");
+                    if (priceEl && priceEl.textContent) {
+                        const match = priceEl.textContent.match(/\d+/);
+                        if (match) productOriginalPrice = parseInt(match[0], 10);
+                    }
+
+                    // --- AVAILABILITY (STOCK) ---
+                    const outOfStockBadge = document.querySelector('.badge-danger');
+                    if (outOfStockBadge && outOfStockBadge.textContent.toLowerCase().includes('out of stock')) {
+                        availability = 0;
+                    } else {
+                        availability = 1;
+                    }
+
+                    // --- IMAGES ---
+                    const imgElements = document.querySelectorAll('#slider .slides .main-image img');
+                    imageUrls = Array.from(imgElements).map(img => img.src).filter(src => src);
+                    featuredimg = imageUrls.length > 0 ? imageUrls[0] : null;
+
+                    // --- VIDEO ---
+                    const videoEl = document.querySelector('video#myVideo source');
+                    videoUrl = videoEl ? videoEl.src : null;
+
+                    // --- SIZES ---
+                    const sizeElements = document.querySelectorAll('.size-setup ul li a.size_click');
+                    sizeName = Array.from(sizeElements).map(el => el.textContent.trim());
+                }
+
+                return {
+                    productName,
+                    productOriginalPrice,
+                    availability,
+                    imageUrl: imageUrls,
+                    featuredimg,
+                    videoUrl,
+                    sizeName
+                };
+            });
+        }
 
         console.log('✅ Raw Extracted Data:', freshData);
 
@@ -94,7 +127,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         console.error('❌ [LiveMethodA] Scraping failed:', error.message);
         throw error;
     } finally {
-        if (browser) await browser.close();
+        if (browser) await browser.close(); // Memory leak fixed!
     }
 
     if (!freshData) {
@@ -105,7 +138,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
     console.log(`💾 Smart Merging and Updating '${dbName}.db'...`);
     const db = await dbManager.getDb(dbName);
 
-    // Fetch existing product to protect old data (like Name and Price if it's Out of Stock)
+    // Fetch existing product to protect old data (like Name and Price if it's Out of Stock or 404)
     const existingRow = await new Promise((resolve, reject) => {
         db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?", [productUrl], (err, row) => {
             if (err) reject(err);
@@ -117,7 +150,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         throw new Error(`Product URL not found in local DB '${dbName}'. Cannot perform Smart Merge.`);
     }
 
-    // Merge logic: If the site hid the name/price because it's OOS, keep our DB's saved name/price!
+    // Merge logic: If the site returned 404 or hid the name/price because it's OOS, keep our DB's saved name/price!
     const finalName = freshData.productName || existingRow.productName;
     const finalPrice = freshData.productOriginalPrice || existingRow.productOriginalPrice;
 
@@ -127,7 +160,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
     const finalFeatured = freshData.featuredimg || existingRow.featuredimg;
     const finalVideo = freshData.videoUrl || existingRow.videoUrl;
 
-    // If it's out of stock, clear the sizes array
+    // If it's out of stock (or 404), clear the sizes array
     const finalSizes = finalAvailability === 0 ? '[]' : JSON.stringify(freshData.sizeName);
     const nowTimestamp = Date.now();
 
@@ -144,7 +177,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         WHERE productUrl = ?
     `;
 
-    const params = [
+    const params =[
         finalName,
         finalPrice,
         finalAvailability,
@@ -168,7 +201,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
 
     // 4. Return the beautifully merged row so WooCommerce gets perfect data
     const updatedRow = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?", [productUrl], (err, row) => {
+        db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?",[productUrl], (err, row) => {
             if (err) reject(err);
             else resolve(row);
         });

@@ -37,6 +37,8 @@ export async function scrapeSingleProductMethodB(productUrl, dbName) {
 
         console.log(`🕵️‍♂️ Extracting product details (Method B)...`);
         freshData = await page.evaluate(() => {
+
+             let availability = 0; 
             
             // --- TITLE ---
             // In Method B, the title is inside .product-right h3
@@ -55,10 +57,12 @@ export async function scrapeSingleProductMethodB(productUrl, dbName) {
 
             // --- AVAILABILITY (STOCK) ---
             // Method B says "Out of stock" (or "In stock") inside .item-stock-status p
-            let availability = 1; 
+           
             const stockStatus = document.querySelector('.item-stock-status p');
             if (stockStatus && stockStatus.textContent.toLowerCase().includes('out of stock')) {
                 availability = 0;
+            }else{
+                availability = 1;
             }
 
             // --- IMAGES ---
