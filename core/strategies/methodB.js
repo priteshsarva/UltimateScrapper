@@ -875,6 +875,7 @@ async function viewMore(page) {
     let hasMoreButton = true;
 
     while (hasMoreButton) {
+
         try {
             // 1. Wait UP TO 4 seconds for the exact button to appear and be visible
             await page.waitForFunction(() => {
@@ -915,6 +916,32 @@ async function viewMore(page) {
             await delay(500);
 
         } catch (error) {
+            
+            console.log("📜 Scrolling top to bottom to load all Next.js images...");
+            await page.evaluate(async () => {
+                await new Promise((resolve) => {
+                    let totalHeight = 0;
+                    let distance = 600; // Scroll 600px at a time
+                    let timer = setInterval(() => {
+                        let scrollHeight = document.body.scrollHeight;
+                        window.scrollBy(0, distance);
+                        totalHeight += distance;
+
+                        // Stop when we hit the bottom
+                        if (totalHeight >= scrollHeight - window.innerHeight) {
+                            clearInterval(timer);
+                            window.scrollTo(0, 0); // Instantly jump back to top
+                            resolve();
+                        }
+                    }, 150); // Pause for 150ms between each scroll step
+                });
+            });
+
+            // Wait 1.5 seconds for network requests to finish downloading the images
+            console.log("⏳ Waiting 2.5 seconds for images to fully render...");
+            await delay(2500);
+
+
             // 4. Timeout reached! 
             // If 4 seconds pass and the button didn't appear, waitForFunction throws an error.
             // We catch that error here to cleanly exit the loop.

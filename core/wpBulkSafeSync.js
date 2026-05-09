@@ -755,7 +755,7 @@ export async function BulkProductOutOfStock(req, res) {
                SET availability = 0, 
                    productLastUpdated = ?
                WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ?
-               `, [now, threeDaysAgo],
+               AND (availability = 1 OR availability = '1' OR availability = true OR availability = 'true' `, [now, tenDaysAgo, threeDaysAgo], // 👈 Smallest time first, largest time second!,
             function (err) {
               if (err) return reject(err);
               console.log(`[${dbName}] Rows marked out of stock: ${this.changes}`);

@@ -236,7 +236,6 @@ app.get('/devproductupdates', async (req, res) => {
     // Format the date and time
     const formattedDate = date.toLocaleString('en-IN', options);
     try {
-        // fetchDataa(baseUrls);
         gitAutoCommitAndPush();
         res.status(200).json({ status: 200, message: `Scrapping started at: ${formattedDate}` });
 
