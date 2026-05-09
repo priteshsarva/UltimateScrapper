@@ -10,7 +10,6 @@ import { rejects } from 'assert';
 import "dotenv/config";
 import { exec } from 'child_process';
 import { humanizePage, humanType } from '../humanize.js';
-import { log } from 'console';
 import { upsertProductSafe, syncProductToAllSites } from '../wpBulkSafeSync.js'
 import { updateProductCategory } from '../../services/updateProductCategoryAndBrand.js';
 
@@ -115,7 +114,7 @@ async function fetchDataaB(singleUrl, DB) {
 
 
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
         defaultViewport: { width: 1080, height: 800 },
         args: [
@@ -240,12 +239,14 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
     for (const cat of categories) {
         const catProductss = []
         const productUrl = cat.caturl;
+        console.log(cat.caturl);
+
         try {
             // Navigate to the product page
             await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 6000 }); // Increase timeout to 120 seconds
             await delay(1500);
             // await page.waitForSelector('#product_list_div', { timeout: 60000 }); // Increase timeout
-
+            console.log("in product page");
             // will procced to next step if either products are found or "not found" message appears, otherwise it will timeout after 15 seconds
             const result = await Promise.race([
                 page.waitForSelector('.shop-p-grid', { timeout: 15000 }).then(() => 'products'),
@@ -916,7 +917,7 @@ async function viewMore(page) {
             await delay(500);
 
         } catch (error) {
-            
+
             console.log("📜 Scrolling top to bottom to load all Next.js images...");
             await page.evaluate(async () => {
                 await new Promise((resolve) => {
