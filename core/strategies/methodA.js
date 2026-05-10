@@ -262,8 +262,7 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
             });
 
             // for temporary disable 
-            // await viewMore(page, productCount)
-            await viewMore(page);
+            await viewMore(page, productCount)
             console.log("After view more");
 
             const productElements = await page.evaluate(() => {
@@ -712,16 +711,16 @@ async function updateProduct(product, DB) {
 // }
 
 
-async function viewMore(page) {
-    let clickCount = 0;
-    let hasMoreButton = true;
+async function viewMore(page, productCount) {
+    // Math logic from your old code to set a hard limit on clicks
+    const count = Math.ceil(productCount / 12);
     const viewMoreButtonSelector = '#loadmore_btn_category_product';
 
-    console.log("🔄 Starting to load products. Monitoring for 'Sold Out' items...");
+    console.log(`🔄 Starting to load products. Max clicks needed: ${count}. Monitoring for 'Sold Out'...`);
 
-    while (hasMoreButton) {
+    for (let i = 0; i < count; i++) {
         try {
-            // 1. Check if ANY product currently on the screen says "Sold Out"
+            // 1. SMART-STOPPING: Check if ANY product on the screen says "Sold Out"
             const foundSoldOut = await page.evaluate(() => {
                 const buttons = Array.from(document.querySelectorAll('#product_list_div button'));
                 return buttons.some(btn => btn.innerText.trim().toLowerCase().includes('sold out'));
@@ -729,13 +728,14 @@ async function viewMore(page) {
 
             if (foundSoldOut) {
                 console.log(`🛑 "Sold Out" product detected! Stopping 'View More' clicks early to save time.`);
-                break; // Instantly exits the loop and moves on to scraping!
+                break; // Instantly exits the for-loop and moves on to scraping!
             }
 
-            // 2. If no "Sold Out" items, try to click "Load More"
+            // 2. Wait for the button and click it safely
+            await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
+            
             const buttonClicked = await page.evaluate((selector) => {
                 const btn = document.querySelector(selector);
-                // Check if button exists, is visible, and isn't hidden by display:none
                 if (btn && btn.offsetParent !== null && !btn.disabled && btn.style.display !== 'none') {
                     btn.click();
                     return true;
@@ -744,18 +744,17 @@ async function viewMore(page) {
             }, viewMoreButtonSelector);
 
             if (buttonClicked) {
-                clickCount++;
-                console.log(`👉 "Load More" button clicked = ${clickCount}`);
-                // Wait 4 seconds for new products to load into the DOM
-                await delay(4000);
+                console.log(`👉 "Load More" button clicked = ${i + 1} / ${count}`);
+                await delay(4000); // Wait for the new products to render
             } else {
-                console.log(`✅ "Load More" button disappeared. Reached the end of the list.`);
-                hasMoreButton = false;
+                console.log(`✅ "Load More" button disappeared or is unclickable.`);
+                break; // Exit loop if button is broken/hidden
             }
 
         } catch (error) {
-            console.error('⚠️ Error during "Load More" sequence:', error.message);
-            hasMoreButton = false; // Break loop safely if something goes wrong
+            // If waitForSelector times out, it means the button is completely gone from the HTML
+            console.log(`✅ "Load More" button no longer found. Reached the end of the list.`);
+            break; 
         }
     }
 }
