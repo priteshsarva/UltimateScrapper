@@ -6126,3 +6126,6 @@
 5/9/2026, 8:11:37 PM | ProductID: 57274 | Site: stylenova | URL: https://city-watch19.cartpe.in/rado-jubilee-city-watch191296.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 5/9/2026, 8:12:40 PM | ProductID: 61410 | Site: stylenova | URL: https://city-watch19.cartpe.in/michael-kors-janelle-city-watch192707.html?color= | Error: Network/Fetch Error: request to https://stylenova.co.in/wp-json/wc/v3/products failed, reason: 
 5/9/2026, 8:13:42 PM | ProductID: 57087 | Site: stylenova | URL: https://timezone17.cartpe.in/fossi-l-grant-automatic-timezone179192.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+5/10/2026, 12:34:30 AM | ProductID: 57652 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/go-recover-premium-grey-black-simplex-mangoenterprise11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+5/10/2026, 12:34:41 AM | ProductID: 62971 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/skecher-s-go-recover-premium-black-grey-simplex-mangoenterprise11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+5/10/2026, 12:34:48 AM | ProductID: 57649 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/skecher-s-go-recover-premium-full-black-simplex-mangoenterprise11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
