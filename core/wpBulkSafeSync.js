@@ -724,6 +724,7 @@ export async function BulkProductOutOfStock(req, res) {
     let allRowsToSync = [];
 
     // 1. Loop through all your local databases
+    // 1. Loop through all your local databases
     for (const dbName of databasesToCheck) {
       const db = await dbManager.getDb(dbName);
       console.log(`📦 Processing local DB: ${dbName}`);
@@ -758,7 +759,8 @@ export async function BulkProductOutOfStock(req, res) {
                SET availability = 0, 
                    productLastUpdated = ?
                WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ?
-               AND (availability = 1 OR availability = '1' OR availability = true OR availability = 'true' `, [now, tenDaysAgo, threeDaysAgo], // 👈 Smallest time first, largest time second!,
+               AND (availability = 1 OR availability = '1' OR availability = true OR availability = 'true')`, // 👈 Fixed: Added the missing closing ")" here!
+            [now, tenDaysAgo, threeDaysAgo],
             function (err) {
               if (err) return reject(err);
               console.log(`[${dbName}] Rows marked out of stock: ${this.changes}`);
@@ -771,11 +773,12 @@ export async function BulkProductOutOfStock(req, res) {
       // 3. Fetch the recently updated items (common for all DBs)
       const rows = await new Promise((resolve, reject) => {
         db.all(
-          "SELECT * FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;", [twentyMinsAgo, now],
+          "SELECT * FROM PRODUCTS WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ? ORDER BY datetime(productLastUpdated / 1000, 'unixepoch') DESC;", 
+          [twentyMinsAgo, now],
           (err, result) => {
             if (err) return reject(err);
             // Attach the dbName so syncProductToAllSites knows what to do with it
-            const mappedRows = (result || []).map(r => ({ ...r, dbName }));
+            const mappedRows = (result ||[]).map(r => ({ ...r, dbName }));
             resolve(mappedRows);
           }
         );
