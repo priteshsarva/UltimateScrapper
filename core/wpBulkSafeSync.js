@@ -738,8 +738,11 @@ export async function BulkProductOutOfStock(req, res) {
                    availability = 0, 
                    productLastUpdated = ?
                WHERE CAST(productLastUpdated AS INTEGER) BETWEEN ? AND ?
-               `,
-            [now, threeDaysAgo],
+               AND (
+                  availability = 1 OR availability = '1' OR availability = true OR availability = 'true'
+                  OR sizeName != '[]'
+               )`,
+            [now, tenDaysAgo, threeDaysAgo], // 👈 Fixed: Now passes all 3 variables!
             function (err) {
               if (err) return reject(err);
               console.log(`[${dbName}] Stale shoes marked OOS and sizes cleared: ${this.changes}`);
