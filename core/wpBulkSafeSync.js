@@ -803,7 +803,7 @@ export async function BulkProductOutOfStock(req, res) {
       return;
     }
 
-    const batchSize = 10;
+    const batchSize = 3;
     const delayMs = 250;
 
     // 4. Sync in batches using the SMART ROUTER
