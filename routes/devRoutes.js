@@ -377,7 +377,7 @@ router.get('/update-single-product', async (req, res) => {
             // This bypasses the dbManager queue so it doesn't get stuck behind the bulk scraper.
             const dbPath = path.resolve(`./databases/${dbName}.db`);
             const db = new sqlite3.Database(dbPath);
-            
+
             // Allow this specific connection to wait patiently in WAL mode
             db.run("PRAGMA busy_timeout = 30000");
 
@@ -510,7 +510,7 @@ router.get('/retry-failed-syncs', async (req, res) => {
         // 2. Read the file and extract unique Product IDs
         const fileContent = fs.readFileSync(failFilePath, 'utf-8');
         const lines = fileContent.split('\n').filter(line => line.trim() !== '');
-        
+
         const failedIds = new Set();
         lines.forEach(line => {
             // Extract the ID using Regex (Looks for "ProductID: 12345")
@@ -531,7 +531,7 @@ router.get('/retry-failed-syncs', async (req, res) => {
 
         // 3. EMPTY THE FILE BEFORE WE RETRY!
         // If they fail again, syncProductToAllSites will automatically write them back to the clean file.
-        fs.writeFileSync(failFilePath, ''); 
+        fs.writeFileSync(failFilePath, '');
 
         // 4. Respond to the API request immediately to prevent 504 Timeout
         res.status(200).json({
@@ -586,10 +586,10 @@ router.get('/retry-failed-syncs', async (req, res) => {
                         if (localProduct) {
                             // Add the dbName so the smart router knows where it belongs
                             localProduct.dbName = targetDbName;
-                            
+
                             // Fire the sync!
                             const isSuccess = await syncProductToAllSites(localProduct, productId);
-                            
+
                             if (isSuccess) {
                                 successCount++;
                             } else {
@@ -625,6 +625,114 @@ router.get('/retry-failed-syncs', async (req, res) => {
         if (!res.headersSent) {
             res.status(500).json({ error: "Internal server error", details: error.message });
         }
+    }
+});
+
+router.get('/clean-old-oos-products', async (req, res) => {
+    try {
+        const shouldDelete = req.query.delete === 'true';
+
+        // Calculate the timestamp for exactly 30 days ago
+        const oneMonthMs = 30 * 24 * 60 * 60 * 1000;
+        const oneMonthAgo = Date.now() - oneMonthMs;
+
+        console.log(`\n🧹 Starting cleanup of >1 month old OOS products...`);
+        console.log(`Cutoff timestamp: ${oneMonthAgo} (${new Date(oneMonthAgo).toLocaleDateString()})`);
+
+        const allResults = [];
+
+        // Helper function for Auth
+        const getAuthHeader = (site) => `Basic ${Buffer.from(`${site.user}:${site.password}`).toString("base64")}`;
+
+        for (const site of WP_SITES) {
+            console.log(`\n🌐 Scanning site: ${site.name}`);
+            let page = 1;
+            let totalPages = 1;
+            let staleProducts = [];
+
+            // 1. Fetch Out of Stock products page by page from WooCommerce
+            do {
+                const url = `${site.url}/wp-json/wc/v3/products?stock_status=outofstock&per_page=100&page=${page}`;
+                const response = await fetch(url, { headers: { Authorization: getAuthHeader(site) } });
+
+                if (!response.ok) {
+                    console.error(`❌ Failed to fetch page ${page} from ${site.name}`);
+                    break;
+                }
+
+                totalPages = parseInt(response.headers.get('x-wp-totalpages') || '1');
+                const products = await response.json();
+                // 2. Filter products based on the custom meta_data
+                for (const p of products) {
+                    const meta = p.meta_data.find(m => m.key === 'productLastUpdated');
+
+                    if (meta && meta.value) {
+                        const lastUpdated = parseInt(meta.value);
+
+                        // If the timestamp is valid and older than 1 month
+                        if (lastUpdated > 0 && lastUpdated < oneMonthAgo) {
+                            staleProducts.push({
+                                id: p.id,
+                                name: p.name,
+                                sku: p.sku,
+                                lastUpdatedDate: new Date(lastUpdated).toLocaleDateString()
+                            });
+                        }
+                    }
+                }
+                console.log(`   - Scanned page ${page}/${totalPages}...`);
+                page++;
+            } while (page <= totalPages);
+
+            console.log(`📦 Found ${staleProducts.length} stale OOS products on ${site.name}.`);
+
+            let deletedCount = 0;
+            let deletedIds = [];
+
+            // 3. Delete the stale products safely in batches
+            if (shouldDelete && staleProducts.length > 0) {
+                console.log(`🔥 Deleting ${staleProducts.length} products from ${site.name}...`);
+
+                const batchSize = 10;
+                for (let i = 0; i < staleProducts.length; i += batchSize) {
+                    const batch = staleProducts.slice(i, i + batchSize);
+                    console.log(`   -> Deleting batch ${Math.floor(i / batchSize) + 1}...`);
+
+                    // Fire deletes concurrently for the batch
+                    const deletePromises = batch.map(p => deleteProduct(p.id, site));
+                    const results = await Promise.all(deletePromises);
+
+                    results.forEach((success, index) => {
+                        if (success) {
+                            deletedCount++;
+                            deletedIds.push(batch[index].id);
+                        }
+                    });
+
+                    // Pause 1 second between batches to protect the WooCommerce server
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+
+            allResults.push({
+                siteName: site.name,
+                staleFoundCount: staleProducts.length,
+                deletedCount: deletedCount,
+                deletedIds: deletedIds,
+                staleProductsPreview: shouldDelete ? [] : staleProducts // Only show the array if we are viewing
+            });
+        }
+
+        res.status(200).json({
+            status: "success",
+            action: shouldDelete ? "deleted_permanently" : "scanned_for_preview",
+            cutoffDate: new Date(oneMonthAgo).toLocaleString(),
+            results: allResults
+        });
+
+    } catch (error) {
+        console.error("❌ Cleanup route error:", error);
+        res.status(500).json({ error: "Internal server error", details: error.message });
     }
 });
 
