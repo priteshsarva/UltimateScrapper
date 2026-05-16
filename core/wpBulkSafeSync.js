@@ -90,7 +90,7 @@ export async function syncProductToAllSites(product, productId = null) {
     }
 
     // Small pause between site uploads
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
 
