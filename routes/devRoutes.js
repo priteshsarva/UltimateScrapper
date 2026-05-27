@@ -206,18 +206,19 @@ router.get("/getProductBydetails", async (req, res) => {
 router.get('/update-single-product', async (req, res) => {
     try {
         const { productId, productUrl, productDb } = req.query;
-
+        const explicitDbRequested = !!productDb;
+        
         if (!productId && !productUrl) {
             return res.status(400).json({ error: "Please provide either 'productId' or 'productUrl'." });
         }
-// 👇 NEW COLLISION GUARD: 
+        // 👇 NEW COLLISION GUARD: 
         // If searching by ID, and no DB is specified, AND the client has multiple DBs... block it!
         if (productId && !productUrl && !explicitDbRequested) {
             const allowedDBsCount = req.clientConfig ? req.clientConfig.access.length : 0;
-            
+
             if (allowedDBsCount > 1) {
-                return res.status(400).json({ 
-                    error: "Collision Risk: You have access to multiple databases. You MUST provide '&productDb=...' (e.g., ?productDb=shoes) when searching by productId!" 
+                return res.status(400).json({
+                    error: "Collision Risk: You have access to multiple databases. You MUST provide '&productDb=...' (e.g., ?productDb=shoes) when searching by productId!"
                 });
             }
         }
@@ -232,15 +233,15 @@ router.get('/update-single-product', async (req, res) => {
         if (productDb) {
             // SECURITY CHECK: Verify this client actually has access to the requested database
             const isAllowed = req.clientConfig.access.some(rule => rule.database === productDb);
-            
+
             if (!isAllowed) {
-                return res.status(403).json({ 
-                    error: `Forbidden. Your current site/tenant does not have access to the '${productDb}' database.` 
+                return res.status(403).json({
+                    error: `Forbidden. Your current site/tenant does not have access to the '${productDb}' database.`
                 });
             }
             dbList = [productDb];
             console.log(`🎯 Searching explicitly in: ${productDb}.db`);
-            
+
         } else {
             // 👇 THIS USES TENANT_IDENTIFY:
             // No specific DB requested. Get all databases THIS client has access to.
@@ -312,12 +313,12 @@ router.get('/update-single-product', async (req, res) => {
         if (timeSinceUpdate < ONE_HOUR_MS) {
             const minutesAgo = Math.floor(timeSinceUpdate / 60000);
             console.log(`⏭️ Skipping: Product was updated just ${minutesAgo} minutes ago.`);
-            
+
             // 👇 Returns the product securely based on Tenant access
             return res.status(200).json({
                 status: "skipped",
                 // message: `Product was recently updated (${minutesAgo} minutes ago). Must be > 60 mins.`,
-                results: [localProduct] 
+                results: [localProduct]
             });
         }
 
@@ -371,7 +372,7 @@ router.get('/update-single-product', async (req, res) => {
         res.status(200).json({
             status: "success",
             message: "Product successfully re-scraped, updated locally, and synced to WooCommerce.",
-            results: [freshProductData] 
+            results: [freshProductData]
         });
 
         // Sync to WooCommerce quietly in the background AFTER sending the response
