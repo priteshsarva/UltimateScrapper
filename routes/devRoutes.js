@@ -481,16 +481,14 @@ router.get('/update-single-product', async (req, res) => {
         // We attach the dbName so the smart router knows if it's shoes or watches!
         freshProductData.dbName = targetDbName;
 
-        await syncProductToAllSites(freshProductData, freshProductData.productId);
 
         console.log(`🎉 Single product update and sync complete!`);
 
         res.status(200).json({
-            status: "success",
-            message: "Product successfully re-scraped, updated locally, and synced to WooCommerce.",
-            methodUsed: siteConfig.method,
-            product: freshProductData
+          results: [ freshProductData ]
         });
+        await syncProductToAllSites(freshProductData, freshProductData.productId);
+
 
     } catch (error) {
         console.error("❌ Error in single product update route:", error);
