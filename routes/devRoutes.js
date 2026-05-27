@@ -210,6 +210,17 @@ router.get('/update-single-product', async (req, res) => {
         if (!productId && !productUrl) {
             return res.status(400).json({ error: "Please provide either 'productId' or 'productUrl'." });
         }
+// 👇 NEW COLLISION GUARD: 
+        // If searching by ID, and no DB is specified, AND the client has multiple DBs... block it!
+        if (productId && !productUrl && !explicitDbRequested) {
+            const allowedDBsCount = req.clientConfig ? req.clientConfig.access.length : 0;
+            
+            if (allowedDBsCount > 1) {
+                return res.status(400).json({ 
+                    error: "Collision Risk: You have access to multiple databases. You MUST provide '&productDb=...' (e.g., ?productDb=shoes) when searching by productId!" 
+                });
+            }
+        }
 
         console.log(`\n🔍 Searching local databases for single product update...`);
 
