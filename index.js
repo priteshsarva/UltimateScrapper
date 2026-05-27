@@ -255,7 +255,7 @@ app.get('/devproductupdates', async (req, res) => {
 
 })
 
-app.use('/dev', devRoutes)
+app.use('/dev',tenantIdentify, devRoutes)
 
 
 

@@ -201,157 +201,11 @@ router.get("/getProductBydetails", async (req, res) => {
     }
 });
 
-router.get("/updateProductBydetails", async (req, res) => {
-    try {
-        const { property, value, siteName } = req.query;
-        let compare = req.query.compare || '=';
 
-        // Check if user requested an update (e.g., ?update=true)
-        const shouldUpdate = req.query.update === 'true';
-
-        if (compare.toLowerCase() === 'contains') compare = 'LIKE';
-
-        if (!property || !value) {
-            return res.status(400).json({ error: "Please provide 'property' and 'value'." });
-        }
-
-        let targetSites = WP_SITES;
-        if (siteName) {
-            targetSites = WP_SITES.filter(s => s.name.toLowerCase() === siteName.toLowerCase());
-            if (targetSites.length === 0) {
-                return res.status(404).json({ error: `Site '${siteName}' not found.` });
-            }
-        }
-
-        console.log(`\n🔍 PHASE 1: Fetching products across ${targetSites.length} site(s) for UPDATE...`);
-
-        // =====================================
-        // PHASE 1: FETCH FROM ALL SITES FIRST
-        // =====================================
-        const fetchPromises = targetSites.map(async (site) => {
-            const products = await fetchAllMatchingProducts(property, value, compare, site);
-            console.log(`✅ [${site.name}] Found ${products.length} products.`);
-            return {
-                site,
-                products,
-                updatedCount: 0,
-                updatedIds: []
-            };
-        });
-
-        const sitesData = await Promise.all(fetchPromises);
-        console.log(`✅ All products fetched successfully from WooCommerce.`);
-
-        // =====================================
-        // PHASE 2: FETCH LOCAL DB & UPDATE 
-        // =====================================
-        if (shouldUpdate) {
-            console.log(`\n⚠️ UPDATE MODE ENABLED! Synchronizing local data to WooCommerce.`);
-
-            const maxProducts = Math.max(...sitesData.map(data => data.products.length), 0);
-
-            // ⚠️ Keeping batch size small (10) because Upsert makes multiple API calls
-            const batchSize = 10;
-
-            for (let i = 0; i < maxProducts; i += batchSize) {
-                console.log(`\n🔥 Updating Global Batch ${Math.floor(i / batchSize) + 1} simultaneously across all sites...`);
-
-                const globalBatchPromises = sitesData.map(async (data) => {
-                    const batch = data.products.slice(i, i + batchSize);
-
-                    if (batch.length > 0) {
-                        console.log(`   ->[${data.site.name}] Firing ${batch.length} updates...`);
-
-                        // 👇 NEW: Figure out exactly which databases THIS specific site is allowed to check
-                        const clientConfig = CLIENT_CONFIGS[data.site.domain];
-                        const allowedDBs = clientConfig ? clientConfig.access.map(rule => rule.database) : [];
-
-                        if (allowedDBs.length === 0) {
-                            console.log(`❌[${data.site.name}] No allowed databases found in CLIENT_CONFIGS. Skipping.`);
-                            return;
-                        }
-
-                        const updatePromises = batch.map(async (p) => {
-                            const sku = p.sku;
-                            if (!sku) return false;
-
-                            // A. Look for this SKU ONLY in databases this site is allowed to see!
-                            let localProduct = null;
-                            for (const dbName of allowedDBs) {
-                                const db = await dbManager.getDb(dbName);
-                                localProduct = await new Promise(resolve => {
-                                    db.get("SELECT * FROM PRODUCTS WHERE productId = ?", [sku], (err, row) => resolve(row));
-                                });
-                                if (localProduct) {
-                                    // Make sure we attach the correct DB name so upsertProductSafe knows where it came from
-                                    localProduct.dbName = dbName;
-                                    break;
-                                }
-                            }
-
-                            // B. If found locally, push the fresh data to WooCommerce!
-                            if (localProduct) {
-                                await upsertProductSafe(localProduct, data.site, sku);
-                                return true;
-                            } else {
-                                console.log(`❌ [${data.site.name}] SKU ${sku} missing from allowed local DBs (${allowedDBs.join(', ')}). Cannot update.`);
-                                return false;
-                            }
-                        });
-
-                        const results = await Promise.all(updatePromises);
-
-                        // Track successes
-                        results.forEach((success, index) => {
-                            if (success) {
-                                data.updatedCount++;
-                                data.updatedIds.push(batch[index].sku);
-                            }
-                        });
-                    }
-                });
-
-                await Promise.all(globalBatchPromises);
-
-                console.log(`⏳ Batch complete. Letting WooCommerce breathe for 2 seconds...`);
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-        }
-
-        // =====================================
-        // PHASE 3: FORMAT AND RETURN RESULTS
-        // =====================================
-        const allResults = sitesData.map(data => ({
-            siteName: data.site.name,
-            matchCount: data.products.length,
-            updatedCount: data.updatedCount,
-            updatedIds: data.updatedIds,
-            products: data.products.map(p => ({
-                id: p.id,
-                name: p.name,
-                sku: p.sku,
-                price: p.price,
-                status: p.status,
-                permalink: p.permalink
-            }))
-        }));
-
-        res.status(200).json({
-            searchQuery: { property, compareRule: compare, value },
-            action: shouldUpdate ? "updated_simultaneously" : "searched",
-            totalSitesProcessed: targetSites.length,
-            results: allResults
-        });
-
-    } catch (error) {
-        console.error("❌ Error in route:", error);
-        res.status(500).json({ error: "Internal server error" });
-    }
-});
 
 router.get('/update-single-product', async (req, res) => {
     try {
-        const { productId, productUrl } = req.query;
+        const { productId, productUrl, productDb } = req.query;
 
         if (!productId && !productUrl) {
             return res.status(400).json({ error: "Please provide either 'productId' or 'productUrl'." });
@@ -359,26 +213,45 @@ router.get('/update-single-product', async (req, res) => {
 
         console.log(`\n🔍 Searching local databases for single product update...`);
 
-        // 1. Get all databases to check
-        const databasesToCheck = new Set();
-        for (const client of Object.values(CLIENT_CONFIGS)) {
-            for (const rule of client.access) {
-                databasesToCheck.add(rule.database);
-            }
-        }
-        const dbList = Array.from(databasesToCheck);
+        // =====================================
+        // 1. SMART DATABASE SELECTION (Tenant-Aware)
+        // =====================================
+        let dbList = [];
 
-        // 2. Find the product locally
+        if (productDb) {
+            // SECURITY CHECK: Verify this client actually has access to the requested database
+            const isAllowed = req.clientConfig.access.some(rule => rule.database === productDb);
+            
+            if (!isAllowed) {
+                return res.status(403).json({ 
+                    error: `Forbidden. Your current site/tenant does not have access to the '${productDb}' database.` 
+                });
+            }
+            dbList = [productDb];
+            console.log(`🎯 Searching explicitly in: ${productDb}.db`);
+            
+        } else {
+            // 👇 THIS USES TENANT_IDENTIFY:
+            // No specific DB requested. Get all databases THIS client has access to.
+            dbList = req.clientConfig.access.map(rule => rule.database);
+            console.log(`🌐 Searching permitted databases for this tenant: ${dbList.join(', ')}`);
+        }
+
+        if (dbList.length === 0) {
+            return res.status(403).json({ error: "No accessible databases configured for this client." });
+        }
+
+        // =====================================
+        // 2. FIND THE PRODUCT LOCALLY
+        // =====================================
         let localProduct = null;
         let targetDbName = null;
 
         for (const dbName of dbList) {
-            // 👇 FIX: Open a completely FRESH connection just for this API request!
-            // This bypasses the dbManager queue so it doesn't get stuck behind the bulk scraper.
+            // Open a completely FRESH connection just for this API request!
             const dbPath = path.resolve(`./databases/${dbName}.db`);
             const db = new sqlite3.Database(dbPath);
 
-            // Allow this specific connection to wait patiently in WAL mode
             db.run("PRAGMA busy_timeout = 30000");
 
             let sql = "";
@@ -391,7 +264,7 @@ router.get('/update-single-product', async (req, res) => {
                 sql = "SELECT * FROM PRODUCTS WHERE productUrl = ?";
                 param = productUrl;
             }
-            console.log(`🔎[${dbName}.db] Searching via independent connection for: ${param}`);
+            console.log(`🔎 [${dbName}.db] Searching via independent connection for: ${param}`);
 
             localProduct = await new Promise((resolve, reject) => {
                 db.get(sql, [param], (err, row) => {
@@ -403,7 +276,6 @@ router.get('/update-single-product', async (req, res) => {
                 });
             });
 
-            // Close this temporary connection to keep memory clean
             db.close();
 
             if (localProduct) {
@@ -412,13 +284,16 @@ router.get('/update-single-product', async (req, res) => {
             }
         }
 
+        // If the product exists, but it's in a database they don't have access to, they get a 404!
         if (!localProduct) {
-            return res.status(404).json({ error: "Product not found in any local database." });
+            return res.status(404).json({ error: "Product not found in any permitted local database." });
         }
 
         console.log(`✅ Found product in '${targetDbName}.db'. Title: ${localProduct.productName}`);
 
-        // 3. Check if it was updated within the last 1 hour
+        // =====================================
+        // 3. CHECK UPDATE TIMESTAMPS
+        // =====================================
         const ONE_HOUR_MS = 60 * 60 * 1000;
         const lastUpdated = parseInt(localProduct.productLastUpdated);
         const timeSinceUpdate = Date.now() - lastUpdated;
@@ -426,16 +301,20 @@ router.get('/update-single-product', async (req, res) => {
         if (timeSinceUpdate < ONE_HOUR_MS) {
             const minutesAgo = Math.floor(timeSinceUpdate / 60000);
             console.log(`⏭️ Skipping: Product was updated just ${minutesAgo} minutes ago.`);
+            
+            // 👇 Returns the product securely based on Tenant access
             return res.status(200).json({
                 status: "skipped",
-                message: `Product was recently updated (${minutesAgo} minutes ago). Must be > 60 mins.`,
-                product: localProduct
+                // message: `Product was recently updated (${minutesAgo} minutes ago). Must be > 60 mins.`,
+                results: [localProduct] 
             });
         }
 
         console.log(`⏳ Product is older than 1 hour. Preparing to re-scrape...`);
 
-        // 4. Identify the Source and Method
+        // =====================================
+        // 4. IDENTIFY SOURCE & METHOD
+        // =====================================
         const targetUrl = localProduct.productUrl;
         const fetchedFrom = localProduct.productFetchedFrom || targetUrl;
 
@@ -449,21 +328,18 @@ router.get('/update-single-product', async (req, res) => {
 
         console.log(`⚙️ Identified Method: ${siteConfig.method} from Site: ${siteConfig.name}`);
 
-        // 5. Trigger the Single Scraper (You will need to link your actual single scraper logic here)
+        // =====================================
+        // 5. TRIGGER THE LIVE SCRAPER
+        // =====================================
         let freshProductData = null;
 
         try {
             if (siteConfig.method === "METHOD_A") {
                 console.log("🚀 Firing Single Scraper Method A...");
                 freshProductData = await scrapeSingleProductMethodA(targetUrl, targetDbName);
-                // Example call:
-                // freshProductData = await scrapeSingleProductMethodA(targetUrl, targetDbName);
-
             } else if (siteConfig.method === "METHOD_B") {
                 console.log("🚀 Firing Single Scraper Method B...");
                 freshProductData = await scrapeSingleProductMethodB(targetUrl, targetDbName);
-                // Example call:
-                // freshProductData = await scrapeSingleProductMethodB(targetUrl, targetDbName);
             } else {
                 throw new Error("Unknown scraping method");
             }
@@ -472,27 +348,30 @@ router.get('/update-single-product', async (req, res) => {
             return res.status(500).json({ error: "Failed to scrape live product data." });
         }
 
-        // --- DEV BYPASS --- 
-        // If your scraper logic above isn't built yet, we simulate fresh data grabbing from localProduct
         freshProductData = freshProductData || localProduct;
-
-        // 6. Push the updated data to WooCommerce via the Smart Router
-        console.log(`🌐 Syncing fresh data to WooCommerce sites...`);
-        // We attach the dbName so the smart router knows if it's shoes or watches!
         freshProductData.dbName = targetDbName;
 
+        console.log(`🎉 Single product update complete! Sending response...`);
 
-        console.log(`🎉 Single product update and sync complete!`);
-
+        // =====================================
+        // 6. RESPOND TO CLIENT & SYNC IN BACKGROUND
+        // =====================================
+        // 👇 Returns the product securely based on Tenant access
         res.status(200).json({
-          results: [ freshProductData ]
+            status: "success",
+            message: "Product successfully re-scraped, updated locally, and synced to WooCommerce.",
+            results: [freshProductData] 
         });
-        await syncProductToAllSites(freshProductData, freshProductData.productId);
 
+        // Sync to WooCommerce quietly in the background AFTER sending the response
+        console.log(`🌐 Syncing fresh data to WooCommerce sites in the background...`);
+        await syncProductToAllSites(freshProductData, freshProductData.productId);
 
     } catch (error) {
         console.error("❌ Error in single product update route:", error);
-        res.status(500).json({ error: "Internal server error", details: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error", details: error.message });
+        }
     }
 });
 
