@@ -2840,3 +2840,5 @@
 5/29/2026, 10:56:33 AM | ProductID: 49550 | Site: stylenova | URL: https://watch-enterprise17.cartpe.in/role-x-automatic-mens-watch-428902758-watch-enterprise17.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 5/29/2026, 10:58:21 AM | ProductID: 65410 | Site: stylenova | URL: https://watchstore17.cartpe.in/emporio-arman-i-classic-npi545924526-watchstore17.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 5/29/2026, 10:58:39 AM | ProductID: 65317 | Site: stylenova | URL: https://watchstore17.cartpe.in/arman-i-exchange-store-article-with-back-logo-npi545914570-watchstore17.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+5/29/2026, 1:30:28 PM | ProductID: 42259 | Site: stylenova | URL: https://uzer-watch.cartpe.in/omega-seamaster-auto-uzer-watch.html?color= | Error: Network/Fetch Error: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+5/29/2026, 2:48:07 PM | ProductID: 42259 | Site: stylenova | URL: https://uzer-watch.cartpe.in/omega-seamaster-auto-uzer-watch.html?color= | Error: Network/Fetch Error: request to https://stylenova.co.in/wp-json/wc/v3/products/142565 failed, reason: 
