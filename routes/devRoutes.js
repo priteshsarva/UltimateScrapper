@@ -357,7 +357,7 @@ router.get('/update-single-product', async (req, res) => {
             }
         } catch (scrapeErr) {
             console.error("❌ Scraping failed:", scrapeErr);
-            return res.status(500).json({ error: "Failed to scrape live product data." });
+            return res.status(200).json({ error: "Failed to scrape live product data.",results: [localProduct] });
         }
 
         freshProductData = freshProductData || localProduct;
