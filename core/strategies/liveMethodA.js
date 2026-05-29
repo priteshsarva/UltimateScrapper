@@ -19,34 +19,52 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
     try {
         // 👇 FIXED MEMORY LEAK: Removed 'const' so the outer 'browser' variable gets assigned and properly closed in 'finally'
         browser = await puppeteer.launch({
-            headless: true,
+            headless: "new", // 'new' uses less RAM than the old 'true' architecture
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-            defaultViewport: { width: 800, height: 600 }, // 👇 Shrunk to save RAM
-            args:[
+            defaultViewport: { width: 800, height: 600 },
+            args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage', // Prevents /tmp memory crashes
+                '--disable-dev-shm-usage', // MUST be included on Linux
                 '--disable-gpu',
                 '--no-zygote',
-                
-                // 👇 Ultra-lightweight flags to survive low-RAM environments
-                '--disable-extensions',         
+                '--single-process', // Warning: Only use if 'new' headless mode is active
+                '--disable-extensions',
+                '--no-first-run',
                 '--disable-background-networking',
+                '--disable-background-timer-throttling',
+                '--disable-client-side-phishing-detection',
                 '--disable-default-apps',
+                '--disable-hang-monitor',
+                '--disable-popup-blocking',
+                '--disable-prompt-on-repost',
                 '--disable-sync',
-                '--mute-audio',                 
-                '--js-flags=--max-old-space-size=256' // Limit JS engine to 256MB
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--safebrowsing-disable-auto-update',
+                '--js-flags=--max-old-space-size=256 --expose-gc' // Force aggressive garbage collection
             ]
         });
 
         const page = await browser.newPage();
+        // Prevent images and fonts from loading in the single scraper to save massive amounts of RAM
+        await page.setRequestInterception(true);
+        page.on('request', (request) => {
+            if (['image', 'stylesheet', 'font', 'media'].includes(request.resourceType())) {
+                request.abort(); // Don't download images or fonts!
+            } else {
+                request.continue();
+            }
+        });
+
         await page.setUserAgent(
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
             '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         );
 
         console.log(`⏳ Navigating to product page...`);
-        
+
         // 👇 Grab the HTTP response to check the status code
         const response = await page.goto(productUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
@@ -55,30 +73,30 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         // ==========================================
         if (response && response.status() === 404) {
             console.log(`⚠️ [LiveMethodA] Product page returned 404 Not Found! Forcing availability to 0.`);
-            
+
             // Set dummy data for 404. Smart Merge will keep the old Name/Price/Images but force stock to 0.
             freshData = {
                 productName: null,
                 productOriginalPrice: null,
-                availability: 0, 
-                imageUrl:[],
+                availability: 0,
+                imageUrl: [],
                 featuredimg: null,
                 videoUrl: null,
-                sizeName:[]
+                sizeName: []
             };
         } else {
             // Page loaded normally, let's extract the data!
             console.log(`🕵️‍♂️ Extracting product details...`);
             freshData = await page.evaluate(() => {
-                
+
                 // Initialize default values to prevent ReferenceErrors
                 let productName = null;
                 let productOriginalPrice = null;
                 let availability = 0;
-                let imageUrls =[];
+                let imageUrls = [];
                 let featuredimg = null;
                 let videoUrl = null;
-                let sizeName =[];
+                let sizeName = [];
 
                 // --- TITLE ---
                 const titleEl = document.querySelector(".s_product_text > h1");
@@ -182,7 +200,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
         WHERE productUrl = ?
     `;
 
-    const params =[
+    const params = [
         finalName,
         finalPrice,
         finalAvailability,
@@ -206,7 +224,7 @@ export async function scrapeSingleProductMethodA(productUrl, dbName) {
 
     // 4. Return the beautifully merged row so WooCommerce gets perfect data
     const updatedRow = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?",[productUrl], (err, row) => {
+        db.get("SELECT * FROM PRODUCTS WHERE productUrl = ?", [productUrl], (err, row) => {
             if (err) reject(err);
             else resolve(row);
         });

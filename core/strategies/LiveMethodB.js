@@ -14,27 +14,45 @@ export async function scrapeSingleProductMethodB(productUrl, dbName) {
 
     try {
         browser = await puppeteer.launch({
-            headless: true,
+            headless: "new", // 'new' uses less RAM than the old 'true' architecture
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-            defaultViewport: { width: 800, height: 600 }, // 👇 Shrunk to save RAM
-            args:[
+            defaultViewport: { width: 800, height: 600 },
+            args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage', // Prevents /tmp memory crashes
+                '--disable-dev-shm-usage', // MUST be included on Linux
                 '--disable-gpu',
                 '--no-zygote',
-                
-                // 👇 Ultra-lightweight flags to survive low-RAM environments
-                '--disable-extensions',         
+                '--single-process', // Warning: Only use if 'new' headless mode is active
+                '--disable-extensions',
+                '--no-first-run',
                 '--disable-background-networking',
+                '--disable-background-timer-throttling',
+                '--disable-client-side-phishing-detection',
                 '--disable-default-apps',
+                '--disable-hang-monitor',
+                '--disable-popup-blocking',
+                '--disable-prompt-on-repost',
                 '--disable-sync',
-                '--mute-audio',                 
-                '--js-flags=--max-old-space-size=256' // Limit JS engine to 256MB
+                '--disable-translate',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--safebrowsing-disable-auto-update',
+                '--js-flags=--max-old-space-size=256 --expose-gc' // Force aggressive garbage collection
             ]
         });
 
         const page = await browser.newPage();
+         // Prevent images and fonts from loading in the single scraper to save massive amounts of RAM
+        await page.setRequestInterception(true);
+        page.on('request', (request) => {
+            if (['image', 'stylesheet', 'font', 'media'].includes(request.resourceType())) {
+                request.abort(); // Don't download images or fonts!
+            } else {
+                request.continue();
+            }
+        });
+
         await page.setUserAgent(
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
             '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
