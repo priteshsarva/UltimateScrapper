@@ -588,7 +588,7 @@ export async function bulkSafeSyncProducts(req, res) {
     }
 
     const batchSize = 10;
-    const delayMs = 250;
+    const delayMs = 500;
 
     // 4. Process in batches using the Smart Router
     for (let i = 0; i < allRowsToSync.length; i += batchSize) {
