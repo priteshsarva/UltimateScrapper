@@ -870,91 +870,178 @@ async function updateProduct(product, DB) {
     }
 }
 
+// async function viewMore(page) {
+//     console.log("Starting to load all products...");
+//     let clickCount = 0;
+//     let hasMoreButton = true;
+
+//     while (hasMoreButton) {
+
+//         try {
+//             // 1. Wait UP TO 4 seconds for the exact button to appear and be visible
+//             await page.waitForFunction(() => {
+//                 const grid = document.querySelector('.shop-p-grid.word-break');
+//                 if (!grid) return false;
+
+//                 const children = grid.children;
+//                 if (children.length === 0) return false;
+
+//                 const lastChild = children[children.length - 1];
+//                 if (lastChild && lastChild.classList.contains('col-span-full')) {
+//                     const button = lastChild.querySelector('button');
+
+//                     // Make sure it exists, says "Load More", is visible, and NOT disabled
+//                     if (button &&
+//                         button.innerText.trim().toLowerCase().includes('load more') &&
+//                         button.offsetParent !== null &&
+//                         !button.disabled) {
+//                         return true;
+//                     }
+//                 }
+//                 return false;
+//             }, { timeout: 4000 }); // <-- Fails automatically if 4000ms pass
+
+//             // 2. If the code reaches here, the button appeared! Let's click it.
+//             await page.evaluate(() => {
+//                 const grid = document.querySelector('.shop-p-grid.word-break');
+//                 const lastChild = grid.children[grid.children.length - 1];
+//                 lastChild.querySelector('button').click();
+//             });
+
+//             clickCount++;
+//             console.log('Load More button clicked =', clickCount);
+
+//             // 3. Tiny 500ms buffer after clicking
+//             // This gives the website a fraction of a second to change the button to "Loading..."
+//             // so our loop doesn't accidentally click the exact same button twice!
+//             await delay(500);
+
+//         } catch (error) {
+
+//             console.log("📜 Scrolling top to bottom to load all Next.js images...");
+//             await page.evaluate(async () => {
+//                 await new Promise((resolve) => {
+//                     let totalHeight = 0;
+//                     let distance = 600; // Scroll 600px at a time
+//                     let timer = setInterval(() => {
+//                         let scrollHeight = document.body.scrollHeight;
+//                         window.scrollBy(0, distance);
+//                         totalHeight += distance;
+
+//                         // Stop when we hit the bottom
+//                         if (totalHeight >= scrollHeight - window.innerHeight) {
+//                             clearInterval(timer);
+//                             window.scrollTo(0, 0); // Instantly jump back to top
+//                             resolve();
+//                         }
+//                     }, 150); // Pause for 150ms between each scroll step
+//                 });
+//             });
+
+//             // Wait 1.5 seconds for network requests to finish downloading the images
+//             console.log("⏳ Waiting 2.5 seconds for images to fully render...");
+//             await delay(2500);
+
+
+//             // 4. Timeout reached! 
+//             // If 4 seconds pass and the button didn't appear, waitForFunction throws an error.
+//             // We catch that error here to cleanly exit the loop.
+//             console.log('✅ "Load More" button not found or disappeared after 4 seconds. All products loaded! Total clicks: ', clickCount);
+//             hasMoreButton = false;
+//         }
+//     }
+//     await delay(1500);
+
+// }
+
 async function viewMore(page) {
-    console.log("Starting to load all products...");
-    let clickCount = 0;
-    let hasMoreButton = true;
+    console.log("🔄 [Method B] Starting infinite scroll to load all products...");
+    
+    let previousCount = 0;
+    let isScrolling = true;
+    let scrollAttempts = 0; // Used to double-check if the network is just being slow
 
-    while (hasMoreButton) {
-
+    while (isScrolling) {
         try {
-            // 1. Wait UP TO 4 seconds for the exact button to appear and be visible
-            await page.waitForFunction(() => {
-                const grid = document.querySelector('.shop-p-grid.word-break');
-                if (!grid) return false;
-
-                const children = grid.children;
-                if (children.length === 0) return false;
-
-                const lastChild = children[children.length - 1];
-                if (lastChild && lastChild.classList.contains('col-span-full')) {
-                    const button = lastChild.querySelector('button');
-
-                    // Make sure it exists, says "Load More", is visible, and NOT disabled
-                    if (button &&
-                        button.innerText.trim().toLowerCase().includes('load more') &&
-                        button.offsetParent !== null &&
-                        !button.disabled) {
-                        return true;
-                    }
-                }
-                return false;
-            }, { timeout: 4000 }); // <-- Fails automatically if 4000ms pass
-
-            // 2. If the code reaches here, the button appeared! Let's click it.
-            await page.evaluate(() => {
-                const grid = document.querySelector('.shop-p-grid.word-break');
-                const lastChild = grid.children[grid.children.length - 1];
-                lastChild.querySelector('button').click();
-            });
-
-            clickCount++;
-            console.log('Load More button clicked =', clickCount);
-
-            // 3. Tiny 500ms buffer after clicking
-            // This gives the website a fraction of a second to change the button to "Loading..."
-            // so our loop doesn't accidentally click the exact same button twice!
-            await delay(500);
-
-        } catch (error) {
-
-            console.log("📜 Scrolling top to bottom to load all Next.js images...");
-            await page.evaluate(async () => {
-                await new Promise((resolve) => {
-                    let totalHeight = 0;
-                    let distance = 600; // Scroll 600px at a time
-                    let timer = setInterval(() => {
-                        let scrollHeight = document.body.scrollHeight;
-                        window.scrollBy(0, distance);
-                        totalHeight += distance;
-
-                        // Stop when we hit the bottom
-                        if (totalHeight >= scrollHeight - window.innerHeight) {
-                            clearInterval(timer);
-                            window.scrollTo(0, 0); // Instantly jump back to top
-                            resolve();
-                        }
-                    }, 150); // Pause for 150ms between each scroll step
+            // 1. SMART-STOPPING: Check if ANY product on the screen says "Sold Out" or "Out of Stock"
+            const foundSoldOut = await page.evaluate(() => {
+                const cards = Array.from(document.querySelectorAll('.product-card'));
+                return cards.some(card => {
+                    const text = card.innerText.toLowerCase();
+                    // Checks for the red overlay "Out of Stock" or the traditional "Sold Out"
+                    return text.includes('sold out') || text.includes('out of stock');
                 });
             });
 
-            // Wait 1.5 seconds for network requests to finish downloading the images
-            console.log("⏳ Waiting 2.5 seconds for images to fully render...");
-            await delay(2500);
+            if (foundSoldOut) {
+                console.log(`🛑 "Out of Stock" product detected! Stopping infinite scroll early to save time.`);
+                break; // Instantly exits the loop and moves on to scraping!
+            }
 
+            // 2. Count how many products are currently on the screen
+            previousCount = await page.evaluate(() => document.querySelectorAll('.product-card').length);
 
-            // 4. Timeout reached! 
-            // If 4 seconds pass and the button didn't appear, waitForFunction throws an error.
-            // We catch that error here to cleanly exit the loop.
-            console.log('✅ "Load More" button not found or disappeared after 4 seconds. All products loaded! Total clicks: ', clickCount);
-            hasMoreButton = false;
+            // 3. Scroll to the very bottom to trigger the Infinite Scroll API
+            await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+            
+            // 4. Wait for the website to fetch and render the new batch of products
+            console.log(`📜 Scrolled down... waiting for new products. (Current count: ${previousCount})`);
+            await delay(3000); 
+
+            // 5. Count the products again to see if new ones appeared
+            const newCount = await page.evaluate(() => document.querySelectorAll('.product-card').length);
+
+            if (newCount === previousCount) {
+                // If the count didn't change, the network might be slow. Give it one more try.
+                scrollAttempts++;
+                if (scrollAttempts >= 2) {
+                    console.log(`✅ No new products loaded. Reached the end of the list! Total products: ${newCount}`);
+                    isScrolling = false; // Stop the loop
+                } else {
+                    console.log(`⚠️ No new products yet, waiting an extra 2 seconds just in case...`);
+                    await delay(2000);
+                }
+            } else {
+                // Reset the attempts counter because we successfully loaded new items!
+                scrollAttempts = 0;
+            }
+
+        } catch (error) {
+            console.error('⚠️ Error during infinite scroll sequence:', error.message);
+            isScrolling = false; // Break loop safely if something crashes
         }
     }
-    await delay(1500);
 
+    // ==========================================
+    // 📜 FULL PAGE SMOOTH SCROLL (Next.js Image Fix)
+    // Now that all products are on the screen, we do one final smooth scroll
+    // to force Next.js IntersectionObserver to load the high-res images!
+    // ==========================================
+    console.log("📜 Performing final smooth scroll to render all Next.js images...");
+    await page.evaluate(async () => {
+        window.scrollTo(0, 0); // Jump back to the top
+
+        await new Promise((resolve) => {
+            let totalHeight = 0;
+            let distance = 600; // Scroll 600px at a time
+            let timer = setInterval(() => {
+                let scrollHeight = document.body.scrollHeight;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
+
+                // Stop when we hit the bottom
+                if (totalHeight >= scrollHeight - window.innerHeight) {
+                    clearInterval(timer);
+                    window.scrollTo(0, 0); // Jump back to top
+                    resolve();
+                }
+            }, 150); // Pause for 150ms between each scroll step
+        });
+    });
+
+    console.log("⏳ Waiting 2.5 seconds for images to fully render...");
+    await delay(2500);
 }
-
-
 
 
 // Start the scraping process
