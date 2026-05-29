@@ -16,13 +16,21 @@ export async function scrapeSingleProductMethodB(productUrl, dbName) {
         browser = await puppeteer.launch({
             headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+            defaultViewport: { width: 800, height: 600 }, // 👇 Shrunk to save RAM
             args:[
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
+                '--disable-dev-shm-usage', // Prevents /tmp memory crashes
                 '--disable-gpu',
-                '--no-zygote'
+                '--no-zygote',
+                
+                // 👇 Ultra-lightweight flags to survive low-RAM environments
+                '--disable-extensions',         
+                '--disable-background-networking',
+                '--disable-default-apps',
+                '--disable-sync',
+                '--mute-audio',                 
+                '--js-flags=--max-old-space-size=256' // Limit JS engine to 256MB
             ]
         });
 
