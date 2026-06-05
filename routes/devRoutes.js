@@ -85,7 +85,7 @@ router.get('/update-stale-sizes', async (req, res) => {
 
 router.get("/getProductBydetails", async (req, res) => {
     try {
-        const { property, value, } = req.query;
+        const { property, value, siteName } = req.query;
         let compare = req.query.compare || '=';
         const shouldDelete = req.query.delete === 'true';
 
@@ -137,6 +137,7 @@ router.get("/getProductBydetails", async (req, res) => {
             // Loop through batches globally
             for (let i = 0; i < maxProducts; i += batchSize) {
                 console.log(`\n🔥 Deleting Global Batch ${Math.floor(i / batchSize) + 1} simultaneously across all sites...`);
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Map over every site and fire their deletes at the exact same time
                 const globalBatchPromises = sitesData.map(async (data) => {
@@ -164,7 +165,7 @@ router.get("/getProductBydetails", async (req, res) => {
 
                 // Pause for 1 second to let the MySQL databases on all servers breathe
                 console.log(`⏳ Batch complete. Letting servers breathe for 1 second...`);
-                // await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
             console.log(`⏳ Batch complete.`);
 
