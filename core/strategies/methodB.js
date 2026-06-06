@@ -398,19 +398,27 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
 
         try {
             console.log("from try block");
-            for (const eachproduct of catProductss) {
+            const API_DELAY_MS = 800; // 800ms between WooCommerce API calls
+
+            for (let i = 0; i < catProductss.length; i++) {
+                const eachproduct = catProductss[i];
                 updateProductCategory(eachproduct);
                 const { productId, skipforwordpress } = await updateProduct(eachproduct, DB);
 
-                // await syncProductToAllSites(eachproduct, productId);
                 if (skipforwordpress) {
-                    console.log("Skipped upsertProductSafe due to WordPress flag. ProductID = " + productId);
+                    console.log(`⏭️ [${i + 1}/${catProductss.length}] Skipped WP sync (no changes). ProductID = ${productId}`);
                 } else {
-                    console.log("upsertProductSafe with id" + productId)
+                    console.log(`🔄 [${i + 1}/${catProductss.length}] Syncing to WordPress... ProductID = ${productId}`);
                     await syncProductToAllSites(eachproduct, productId);
+
+                    // 🔧 FIX: Wait between API calls to prevent MySQL connection flooding
+                    if (i < catProductss.length - 1) {
+                        console.log(`⏳ Waiting ${API_DELAY_MS}ms before next API call...`);
+                        await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+                    }
                 }
-                console.log("From Each Product");
             }
+            
             products.push(...catProductss)
             console.log("All products processed.");
             // Enable network domain to control cache
@@ -956,7 +964,7 @@ async function updateProduct(product, DB) {
 
 async function viewMore(page) {
     console.log("🔄 [Method B] Starting infinite scroll to load all products...");
-    
+
     let previousCount = 0;
     let isScrolling = true;
     let scrollAttempts = 0; // Used to double-check if the network is just being slow
@@ -983,10 +991,10 @@ async function viewMore(page) {
 
             // 3. Scroll to the very bottom to trigger the Infinite Scroll API
             await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-            
+
             // 4. Wait for the website to fetch and render the new batch of products
             console.log(`📜 Scrolled down... waiting for new products. (Current count: ${previousCount})`);
-            await delay(3000); 
+            await delay(3000);
 
             // 5. Count the products again to see if new ones appeared
             const newCount = await page.evaluate(() => document.querySelectorAll('.product-card').length);

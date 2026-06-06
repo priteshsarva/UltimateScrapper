@@ -382,19 +382,27 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
 
         try {
             console.log("from try block");
-            for (const eachproduct of catProductss) {
+            const API_DELAY_MS = 800; // 800ms between WooCommerce API calls
+
+            for (let i = 0; i < catProductss.length; i++) {
+                const eachproduct = catProductss[i];
                 updateProductCategory(eachproduct);
                 const { productId, skipforwordpress } = await updateProduct(eachproduct, DB);
 
-                // await syncProductToAllSites(eachproduct, productId);
                 if (skipforwordpress) {
-                    console.log("Skipped upsertProductSafe due to WordPress flag. ProductID = " + productId);
+                    console.log(`⏭️ [${i + 1}/${catProductss.length}] Skipped WP sync (no changes). ProductID = ${productId}`);
                 } else {
-                    console.log("upsertProductSafe with id" + productId)
+                    console.log(`🔄 [${i + 1}/${catProductss.length}] Syncing to WordPress... ProductID = ${productId}`);
                     await syncProductToAllSites(eachproduct, productId);
+
+                    // 🔧 FIX: Wait between API calls to prevent MySQL connection flooding
+                    if (i < catProductss.length - 1) {
+                        console.log(`⏳ Waiting ${API_DELAY_MS}ms before next API call...`);
+                        await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+                    }
                 }
-                console.log("From Each Product");
             }
+            
             products.push(...catProductss)
             console.log("All products processed.");
             // Enable network domain to control cache
@@ -733,7 +741,7 @@ async function viewMore(page, productCount) {
 
             // 2. Wait for the button and click it safely
             await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
-            
+
             const buttonClicked = await page.evaluate((selector) => {
                 const btn = document.querySelector(selector);
                 if (btn && btn.offsetParent !== null && !btn.disabled && btn.style.display !== 'none') {
@@ -754,7 +762,7 @@ async function viewMore(page, productCount) {
         } catch (error) {
             // If waitForSelector times out, it means the button is completely gone from the HTML
             console.log(`✅ "Load More" button no longer found. Reached the end of the list.`);
-            break; 
+            break;
         }
     }
 }
