@@ -5359,3 +5359,4 @@
 6/7/2026, 9:01:35 AM | ProductID: null | Site: stylenova | URL: https://eye-care.cartpe.in/arman-i-couple-watch-327840519-eye-care.html?color= | Error: Network/Fetch Error: request to https://stylenova.co.in/wp-json/wc/v3/products failed, reason: 
 6/7/2026, 9:02:58 AM | ProductID: 36201 | Site: stylenova | URL: https://watchcode1.cartpe.in/casio-ltp-vintage-377951126-watchcode1.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/7/2026, 10:15:53 AM | ProductID: 45420 | Site: stylenova | URL: https://watchhouse11.cartpe.in/casio-g-shock-gm2100-439200859-watchhouse11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/7/2026, 11:50:32 AM | ProductID: 60394 | Site: stylenova | URL: https://kdenterprise.jdwebnship.com/products/SKU1777287704829773 | Error: WooCommerce Error: Invalid or duplicated SKU.
