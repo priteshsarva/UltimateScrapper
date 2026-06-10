@@ -402,7 +402,7 @@ async function scrapeProducts(page, categories, baseUrl, DB) {
                     }
                 }
             }
-            
+
             products.push(...catProductss)
             console.log("All products processed.");
             // Enable network domain to control cache
@@ -609,45 +609,42 @@ async function updateProduct(product, DB) {
             const updates = [];
             const values = [];
 
-            if (typeof product.productName !== 'undefined') {
+            if (typeof product.productName !== 'undefined' && product.productName !== row[0].productName) {
                 updates.push(`productName = ?`);
                 values.push(product.productName);
             }
 
-            if (typeof product.productPrice !== 'undefined') {
+            if (typeof product.productPrice !== 'undefined' && product.productPrice !== row[0].productPrice) {
                 updates.push(`productPrice = ?`);
                 values.push(product.productPrice);
             }
-            if (typeof product.productPriceWithoutDiscount !== 'undefined') {
+            if (typeof product.productPriceWithoutDiscount !== 'undefined' && product.productPriceWithoutDiscount !== row[0].productPriceWithoutDiscount) {
                 updates.push(`productPriceWithoutDiscount = ?`);
                 values.push(product.productPriceWithoutDiscount);
             }
-            if (typeof product.productOriginalPrice !== 'undefined') {
+            if (typeof product.productOriginalPrice !== 'undefined' && product.productOriginalPrice !== row[0].productOriginalPrice) {
                 updates.push(`productOriginalPrice = ?`);
                 values.push(product.productOriginalPrice);
             }
-            if (typeof product.sizeName !== 'undefined') {
+            if (typeof product.sizeName !== 'undefined' && product.sizeName !== row[0].sizeName) {
                 updates.push(`sizeName = ?`);
                 values.push(JSON.stringify(product.sizeName));
             }
-            if (typeof product.availability !== 'undefined') {
-                console.log("product.availability found")
-                if (toBoolean(product.availability) === toBoolean(row[0].availability)) {
-                    skipforwordpress = true;
-                } else {
-                    updates.push(`availability = ?`);
-                    values.push(JSON.stringify(product.availability));
-                    skipforwordpress = false;
-                }
-
+            if (typeof product.availability !== 'undefined' && toBoolean(product.availability) !== toBoolean(row[0].availability)) {
+                updates.push(`availability = ?`);
+                values.push(JSON.stringify(product.availability));
             }
 
-            updates.push(`productLastUpdated = ?`);
-            values.push(Date.now());
+
 
             // Check if there are fields to update
             if (updates.length > 0) {
+
+                updates.push(`productLastUpdated = ?`);
+                values.push(Date.now());
+                
                 const sql = updateQuery + updates.join(', ') + ` WHERE productId = ?`;
+                skipforwordpress = false;
 
                 try {
                     const params = [...values, productId];
