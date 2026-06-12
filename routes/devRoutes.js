@@ -629,16 +629,17 @@ router.get('/outofstock5days', async (req, res) => {
     try {
         const shouldDelete = req.query.delete === 'true';
 
-        // Calculate the timestamp for exactly 30 days ago
-        const oneMonthMs = 5 * 24 * 60 * 60 * 1000;
-        const oneMonthAgo = Date.now() - oneMonthMs;
+        // Calculate the timestamp for exactly 5 days ago
+        const fiveDaysMs = 5 * 24 * 60 * 60 * 1000;
+        const fiveDaysAgo = Date.now() - fiveDaysMs;
 
-        console.log(`\n🧹 Starting cleanup of >1 month old OOS products...`);
-        console.log(`Cutoff timestamp: ${oneMonthAgo} (${new Date(oneMonthAgo).toLocaleDateString()})`);
+        console.log(`\n🧹 Starting cleanup of > 5 days old IN-STOCK products...`);
+        console.log(`Cutoff timestamp: ${fiveDaysAgo} (${new Date(fiveDaysAgo).toLocaleDateString()})`);
 
         const allResults = [];
 
-        // Helper function for Auth
+        // Helper function for Auth (Make sure this exists in your scope/imports!)
+        const getAuthHeader = (site) => `Basic ${Buffer.from(`${site.user}:${site.password}`).toString("base64")}`;
 
         for (const site of WP_SITES) {
             console.log(`\n🌐 Scanning site: ${site.name}`);
@@ -646,18 +647,39 @@ router.get('/outofstock5days', async (req, res) => {
             let totalPages = 1;
             let staleProducts = [];
 
-            // 1. Fetch Out of Stock products page by page from WooCommerce
+            // 1. Fetch In-Stock products page by page from WooCommerce
             do {
                 const url = `${site.url}/wp-json/wc/v3/products?stock_status=instock&per_page=50&page=${page}`;
-                const response = await fetch(url, { headers: { Authorization: getAuthHeader(site) ,"Content-Type": "application/json",'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'} });
+                
+                let response;
+                let fetchSuccess = false;
+                
+                // 👇 FIX 1: Auto-Retry Wrapper to survive ECONNRESET / 504 Timeouts
+                for (let retry = 0; retry < 3; retry++) {
+                    try {
+                        response = await fetch(url, { 
+                            headers: { 
+                                Authorization: getAuthHeader(site),
+                                "Content-Type": "application/json",
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                            } 
+                        });
+                        fetchSuccess = true;
+                        break; // Success! Break out of the retry loop
+                    } catch (err) {
+                        console.log(`⚠️ Network glitch on Page ${page} (Attempt ${retry + 1}/3). Retrying in 3s...`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
+                }
 
-                if (!response.ok) {
-                    console.error(`❌ Failed to fetch page ${page} from ${site.name}`);
-                    break;
+                if (!fetchSuccess || !response.ok) {
+                    console.error(`❌ Failed to fetch page ${page} from ${site.name} after retries.`);
+                    break; // Stop scanning this site and move to the next one
                 }
 
                 totalPages = parseInt(response.headers.get('x-wp-totalpages') || '1');
                 const products = await response.json();
+                
                 // 2. Filter products based on the custom meta_data
                 for (const p of products) {
                     const meta = p.meta_data.find(m => m.key === 'productLastUpdated');
@@ -665,8 +687,8 @@ router.get('/outofstock5days', async (req, res) => {
                     if (meta && meta.value) {
                         const lastUpdated = parseInt(meta.value);
 
-                        // If the timestamp is valid and older than 1 month
-                        if (lastUpdated > 0 && lastUpdated < oneMonthAgo) {
+                        // If the timestamp is valid and older than 5 days
+                        if (lastUpdated > 0 && lastUpdated < fiveDaysAgo) {
                             staleProducts.push({
                                 id: p.id,
                                 name: p.name,
@@ -676,27 +698,32 @@ router.get('/outofstock5days', async (req, res) => {
                         }
                     }
                 }
+                
                 console.log(`   - Scanned page ${page}/${totalPages}...`);
                 page++;
+                
+                // 👇 FIX 2: Give WooCommerce 1 second to breathe before asking for the next 50 items!
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
             } while (page <= totalPages);
 
-            console.log(`📦 Found ${staleProducts.length} stale OOS products on ${site.name}.`);
+            console.log(`📦 Found ${staleProducts.length} stale products on ${site.name}.`);
 
             let deletedCount = 0;
             let deletedIds = [];
 
-            // 3. Delete the stale products safely in batches
+            // 3. Mark the stale products out of stock safely in batches
             if (shouldDelete && staleProducts.length > 0) {
-                console.log(`🔥 Deleting ${staleProducts.length} products from ${site.name}...`);
+                console.log(`🔥 Marking ${staleProducts.length} products Out of Stock on ${site.name}...`);
 
                 const batchSize = 10;
                 for (let i = 0; i < staleProducts.length; i += batchSize) {
                     const batch = staleProducts.slice(i, i + batchSize);
-                    console.log(`   -> Deleting batch ${Math.floor(i / batchSize) + 1}...`);
+                    console.log(`   -> Processing batch ${Math.floor(i / batchSize) + 1}...`);
 
-                    // Fire deletes concurrently for the batch
-                    const deletePromises = batch.map(p => markProductOutOfStock(p.id, site));
-                    const results = await Promise.all(deletePromises);
+                    // Fire concurrent updates for the batch
+                    const updatePromises = batch.map(p => markProductOutOfStock(p.id, site)); // Ensure markProductOutOfStock is imported!
+                    const results = await Promise.all(updatePromises);
 
                     results.forEach((success, index) => {
                         if (success) {
@@ -713,16 +740,16 @@ router.get('/outofstock5days', async (req, res) => {
             allResults.push({
                 siteName: site.name,
                 staleFoundCount: staleProducts.length,
-                deletedCount: deletedCount,
-                deletedIds: deletedIds,
+                updatedCount: deletedCount,
+                updatedIds: deletedIds,
                 staleProductsPreview: shouldDelete ? [] : staleProducts // Only show the array if we are viewing
             });
         }
 
         res.status(200).json({
             status: "success",
-            action: shouldDelete ? "deleted_permanently" : "scanned_for_preview",
-            cutoffDate: new Date(oneMonthAgo).toLocaleString(),
+            action: shouldDelete ? "marked_out_of_stock" : "scanned_for_preview",
+            cutoffDate: new Date(fiveDaysAgo).toLocaleString(),
             results: allResults
         });
 
