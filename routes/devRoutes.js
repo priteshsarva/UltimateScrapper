@@ -649,7 +649,7 @@ router.get('/outofstock5days', async (req, res) => {
             // 1. Fetch Out of Stock products page by page from WooCommerce
             do {
                 const url = `${site.url}/wp-json/wc/v3/products?stock_status=instock&per_page=50&page=${page}`;
-                const response = await fetch(url, { headers: { Authorization: getAuthHeader(site) ,"Content-Type": "application/json",} });
+                const response = await fetch(url, { headers: { Authorization: getAuthHeader(site) ,"Content-Type": "application/json",'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'} });
 
                 if (!response.ok) {
                     console.error(`❌ Failed to fetch page ${page} from ${site.name}`);
