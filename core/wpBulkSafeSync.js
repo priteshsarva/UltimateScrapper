@@ -263,6 +263,36 @@ export async function deleteProduct(productId, site) {
 }
 
 
+export async function markProductOutOfStock(productId, site) {
+  try {
+    // The endpoint points directly to the product ID without any extra query parameters
+    const endpoint = `${site.url}/wp-json/wc/v3/products/${productId}`;
+
+    const res = await fetch(endpoint, {
+      method: "PUT", // PUT updates an existing resource
+      headers: { 
+        "Authorization": getAuthHeader(site),
+        "Content-Type": "application/json" // Crucial so WooCommerce knows you are sending JSON
+      },
+      body: JSON.stringify({
+        stock_status: "outofstock" // Changes the stock status to out of stock
+      })
+    });
+
+    if (res.ok) {
+      console.log(`📦 [${site.name}] Marked product ID: ${productId} as OUT OF STOCK`);
+      return true;
+    } else {
+      const errorData = await res.json().catch(() => ({}));
+      console.error(`❌ [${site.name}] Failed to update status for product ID: ${productId}. Status: ${res.status}`, errorData);
+      return false;
+    }
+  } catch (err) {
+    console.error(`❌ [${site.name}] Error updating product stock status:`, err);
+    return false;
+  }
+}
+
 async function getOrCreateBrand(brandName, site) {
   if (!brandName) return null;
 
