@@ -99,7 +99,7 @@ export async function syncProductToAllSites(product, productId = null) {
 }
 
 
-function getAuthHeader(site) {
+export function getAuthHeader(site) {
   // const auth = Buffer.from(`${WP_CONSUMER_KEY}:${WP_CONSUMER_SECRET}`).toString("base64");
   // return `Basic ${auth}`;
 

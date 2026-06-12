@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites, markProductOutOfStock } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites, markProductOutOfStock,getAuthHeader } from "../core/wpBulkSafeSync.js";
 import { scrapeSingleProductMethodA } from '../core/strategies/liveMethodA.js';
 import { scrapeSingleProductMethodB } from '../core/strategies/LiveMethodB.js';
 import sqlite3 from 'sqlite3';
@@ -532,7 +532,6 @@ router.get('/clean-old-oos-products', async (req, res) => {
         const allResults = [];
 
         // Helper function for Auth
-        const getAuthHeader = (site) => `Basic ${Buffer.from(`${site.user}:${site.password}`).toString("base64")}`;
 
         for (const site of WP_SITES) {
             console.log(`\n🌐 Scanning site: ${site.name}`);
@@ -640,7 +639,6 @@ router.get('/outofstock5days', async (req, res) => {
         const allResults = [];
 
         // Helper function for Auth
-        const getAuthHeader = (site) => `Basic ${Buffer.from(`${site.user}:${site.password}`).toString("base64")}`;
 
         for (const site of WP_SITES) {
             console.log(`\n🌐 Scanning site: ${site.name}`);
