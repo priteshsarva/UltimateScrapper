@@ -1,6 +1,6 @@
 import express from 'express';
 import { dbManager } from '../models/dbManager.js';
-import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites, markProductOutOfStock,getAuthHeader } from "../core/wpBulkSafeSync.js";
+import { bulkSafeSyncProducts, BulkProductOutOfStock, getProductBydetails, WP_SITES, deleteProduct, fetchAllMatchingProducts, upsertProductSafe, syncProductToAllSites, markProductOutOfStock, getAuthHeader } from "../core/wpBulkSafeSync.js";
 import { scrapeSingleProductMethodA } from '../core/strategies/liveMethodA.js';
 import { scrapeSingleProductMethodB } from '../core/strategies/LiveMethodB.js';
 import sqlite3 from 'sqlite3';
@@ -650,24 +650,25 @@ router.get('/outofstock5days', async (req, res) => {
             // 1. Fetch In-Stock products page by page from WooCommerce
             do {
                 const url = `${site.url}/wp-json/wc/v3/products?stock_status=instock&per_page=50&page=${page}`;
-                
+
                 let response;
                 let fetchSuccess = false;
-                
+
                 // 👇 FIX 1: Auto-Retry Wrapper to survive ECONNRESET / 504 Timeouts
                 for (let retry = 0; retry < 3; retry++) {
                     try {
-                        response = await fetch(url, { 
-                            headers: { 
+                        response = await fetch(url, {
+                            headers: {
                                 Authorization: getAuthHeader(site),
                                 "Content-Type": "application/json",
                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                            } 
+                            }
                         });
                         fetchSuccess = true;
                         break; // Success! Break out of the retry loop
                     } catch (err) {
-                        console.log(`⚠️ Network glitch on Page ${page} (Attempt ${retry + 1}/3). Retrying in 3s...`);
+                        const exactCause = err.cause ? (err.cause.code || err.cause.message) : err.message;
+                        console.log(`⚠️ Network glitch on Page ${page} (Attempt ${retry + 1}/3). Cause: ${exactCause}`);
                         await new Promise(resolve => setTimeout(resolve, 3000));
                     }
                 }
@@ -679,7 +680,7 @@ router.get('/outofstock5days', async (req, res) => {
 
                 totalPages = parseInt(response.headers.get('x-wp-totalpages') || '1');
                 const products = await response.json();
-                
+
                 // 2. Filter products based on the custom meta_data
                 for (const p of products) {
                     const meta = p.meta_data.find(m => m.key === 'productLastUpdated');
@@ -698,10 +699,10 @@ router.get('/outofstock5days', async (req, res) => {
                         }
                     }
                 }
-                
+
                 console.log(`   - Scanned page ${page}/${totalPages}...`);
                 page++;
-                
+
                 // 👇 FIX 2: Give WooCommerce 1 second to breathe before asking for the next 50 items!
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
