@@ -628,122 +628,108 @@ router.get('/clean-old-oos-products', async (req, res) => {
 router.get('/outofstock5days', async (req, res) => {
     try {
         const shouldDelete = req.query.delete === 'true';
-
-        // Calculate the timestamp for exactly 5 days ago
         const fiveDaysMs = 5 * 24 * 60 * 60 * 1000;
         const fiveDaysAgo = Date.now() - fiveDaysMs;
 
-        console.log(`\n🧹 Starting cleanup of > 5 days old IN-STOCK products...`);
-        console.log(`Cutoff timestamp: ${fiveDaysAgo} (${new Date(fiveDaysAgo).toLocaleDateString()})`);
+        console.log(`\n🧹 Finding stale in-stock products (> 5 days old)...`);
 
         const allResults = [];
-
-        // Helper function for Auth (Make sure this exists in your scope/imports!)
         const getAuthHeader = (site) => `Basic ${Buffer.from(`${site.user}:${site.password}`).toString("base64")}`;
 
         for (const site of WP_SITES) {
-            console.log(`\n🌐 Scanning site: ${site.name}`);
+            console.log(`\n🌐 Scanning: ${site.name}`);
             let page = 1;
             let totalPages = 1;
             let staleProducts = [];
 
-            // 1. Fetch In-Stock products page by page from WooCommerce
             do {
-                const url = `${site.url}/wp-json/wc/v3/products?stock_status=instock&per_page=50&page=${page}`;
+                // 🔧 FIX: Query ONLY stale products directly using your meta filter
+                // Instead of fetching ALL 15,950 in-stock products and filtering client-side,
+                // ask WooCommerce to return only products where productLastUpdated < fiveDaysAgo
+                const url = `${site.url}/wp-json/wc/v3/products?stock_status=instock&per_page=50&page=${page}&meta_key=productLastUpdated&meta_value=${fiveDaysAgo}&meta_compare=<`;
 
                 let response;
                 let fetchSuccess = false;
 
-                // 👇 FIX 1: Auto-Retry Wrapper to survive ECONNRESET / 504 Timeouts
                 for (let retry = 0; retry < 3; retry++) {
                     try {
                         response = await fetch(url, {
                             headers: {
                                 Authorization: getAuthHeader(site),
                                 "Content-Type": "application/json",
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                             }
                         });
                         fetchSuccess = true;
-                        break; // Success! Break out of the retry loop
+                        break;
                     } catch (err) {
-                        const exactCause = err.cause ? (err.cause.code || err.cause.message) : err.message;
-                        console.log(`⚠️ Network glitch on Page ${page} (Attempt ${retry + 1}/3). Cause: ${exactCause}`);
+                        const cause = err.cause ? (err.cause.code || err.cause.message) : err.message;
+                        console.log(`⚠️ Retry ${retry + 1}/3 on page ${page}. Cause: ${cause}`);
                         await new Promise(resolve => setTimeout(resolve, 3000));
                     }
                 }
 
                 if (!fetchSuccess || !response.ok) {
-                    console.error(`❌ Failed to fetch page ${page} from ${site.name} after retries.`);
-                    break; // Stop scanning this site and move to the next one
+                    console.error(`❌ Failed page ${page} from ${site.name}`);
+                    break;
                 }
 
                 totalPages = parseInt(response.headers.get('x-wp-totalpages') || '1');
                 const products = await response.json();
 
-                // 2. Filter products based on the custom meta_data
+                if (products.length === 0) break;
+
+                // No client-side filtering needed — WooCommerce already filtered for us
                 for (const p of products) {
-                    const meta = p.meta_data.find(m => m.key === 'productLastUpdated');
-
-                    if (meta && meta.value) {
-                        const lastUpdated = parseInt(meta.value);
-
-                        // If the timestamp is valid and older than 5 days
-                        if (lastUpdated > 0 && lastUpdated < fiveDaysAgo) {
-                            staleProducts.push({
-                                id: p.id,
-                                name: p.name,
-                                sku: p.sku,
-                                lastUpdatedDate: new Date(lastUpdated).toLocaleDateString()
-                            });
-                        }
-                    }
+                    staleProducts.push({
+                        id: p.id,
+                        name: p.name,
+                        sku: p.sku,
+                        lastUpdatedDate: new Date(
+                            parseInt(p.meta_data?.find(m => m.key === 'productLastUpdated')?.value || 0)
+                        ).toLocaleDateString()
+                    });
                 }
 
-                console.log(`   - Scanned page ${page}/${totalPages}...`);
+                console.log(`   - Page ${page}/${totalPages} → ${staleProducts.length} stale so far`);
                 page++;
 
-                // 👇 FIX 2: Give WooCommerce 1 second to breathe before asking for the next 50 items!
                 await new Promise(resolve => setTimeout(resolve, 1000));
-
             } while (page <= totalPages);
 
             console.log(`📦 Found ${staleProducts.length} stale products on ${site.name}.`);
 
-            let deletedCount = 0;
-            let deletedIds = [];
+            let updatedCount = 0;
+            let updatedIds = [];
 
-            // 3. Mark the stale products out of stock safely in batches
+            // Mark out of stock — sequential with delays to prevent connection flooding
             if (shouldDelete && staleProducts.length > 0) {
-                console.log(`🔥 Marking ${staleProducts.length} products Out of Stock on ${site.name}...`);
+                console.log(`🔥 Marking ${staleProducts.length} products OOS on ${site.name}...`);
 
-                const batchSize = 10;
+                // 🔧 FIX: Sequential instead of 10 concurrent, with delay
+                const batchSize = 5;
                 for (let i = 0; i < staleProducts.length; i += batchSize) {
                     const batch = staleProducts.slice(i, i + batchSize);
-                    console.log(`   -> Processing batch ${Math.floor(i / batchSize) + 1}...`);
+                    console.log(`   -> Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(staleProducts.length / batchSize)}...`);
 
-                    // Fire concurrent updates for the batch
-                    const updatePromises = batch.map(p => markProductOutOfStock(p.id, site)); // Ensure markProductOutOfStock is imported!
-                    const results = await Promise.all(updatePromises);
-
-                    results.forEach((success, index) => {
+                    for (const p of batch) {
+                        const success = await markProductOutOfStock(p.id, site);
                         if (success) {
-                            deletedCount++;
-                            deletedIds.push(batch[index].id);
+                            updatedCount++;
+                            updatedIds.push(p.id);
                         }
-                    });
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
 
-                    // Pause 1 second between batches to protect the WooCommerce server
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
 
             allResults.push({
                 siteName: site.name,
                 staleFoundCount: staleProducts.length,
-                updatedCount: deletedCount,
-                updatedIds: deletedIds,
-                staleProductsPreview: shouldDelete ? [] : staleProducts // Only show the array if we are viewing
+                updatedCount,
+                updatedIds,
+                staleProductsPreview: shouldDelete ? [] : staleProducts
             });
         }
 
