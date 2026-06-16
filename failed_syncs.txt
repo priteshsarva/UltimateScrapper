@@ -229,3 +229,12 @@
 16/6/2026, 12:16:58 am | ProductID: 58512 | Site: stylenova | URL: https://watch-street.jdwebnship.com/products/SKU1775826565289162 | Error: WooCommerce Error: The product with SKU (58512) you are trying to insert is already present in the lookup table
 16/6/2026, 1:10:14 am | ProductID: 58605 | Site: stylenova | URL: https://timepiece.jdwebnship.com/products/SKU1775894618623767 | Error: WooCommerce Error: The product with SKU (58605) you are trying to insert is already present in the lookup table
 16/6/2026, 1:10:27 am | ProductID: 58686 | Site: stylenova | URL: https://timepiece.jdwebnship.com/products/SKU1775894591248926 | Error: WooCommerce Error: The product with SKU (58686) you are trying to insert is already present in the lookup table
+6/16/2026, 5:09:19 PM | ProductID: 43220 | Site: stylenova | URL: https://watchhouse11.cartpe.in/hublot-big-bang-classic-fusion-425343673-watchhouse11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:13:43 PM | ProductID: 21606 | Site: stylenova | URL: https://zeewatches.cartpe.in/bvlgari-aluminium-zeewatches.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:20:49 PM | ProductID: 22544 | Site: stylenova | URL: https://eye-care.cartpe.in/g-shock-watch-327840728-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:22:09 PM | ProductID: 38902 | Site: stylenova | URL: https://watchhouse11.cartpe.in/michael-kors-lexington-premium-396923606-watchhouse11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:24:38 PM | ProductID: 22683 | Site: stylenova | URL: https://eye-care.cartpe.in/role-x-watch-327840557-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:25:28 PM | ProductID: 22695 | Site: stylenova | URL: https://eye-care.cartpe.in/role-x-watch-327840544-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:26:00 PM | ProductID: 36544 | Site: stylenova | URL: https://watchhouse11.cartpe.in/casio-g-shock-gm700-381469209-watchhouse11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:28:08 PM | ProductID: 22754 | Site: stylenova | URL: https://eye-care.cartpe.in/fossi-l-watch-327840479-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/16/2026, 5:30:10 PM | ProductID: 22812 | Site: stylenova | URL: https://eye-care.cartpe.in/luminor-panerai-watch-327840412-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
