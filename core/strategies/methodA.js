@@ -750,7 +750,7 @@ async function viewMore(page, productCount) {
 
             if (buttonClicked) {
                 console.log(`👉 "Load More" button clicked = ${i + 1} / ${count}`);
-                await delay(4000); // Wait for the new products to render
+                await delay(1500); // Wait for the new products to render
             } else {
                 console.log(`✅ "Load More" button disappeared or is unclickable.`);
                 break; // Exit loop if button is broken/hidden
