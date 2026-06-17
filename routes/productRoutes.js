@@ -246,6 +246,37 @@ router.get('/allresults', async (req, res) => {
     }
 });
 
+router.get('/sync-feed', async (req, res) => {
+  try {
+    const by    = req.query.by === 'ts' ? 'ts' : 'id';     // 'id' = new, 'ts' = updated
+    const after = parseInt(req.query.after) || 0;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+
+    const dbNames = req.clientConfig.access.map(r => r.database);
+    let all = [];
+
+    for (const dbName of dbNames) {
+      const db  = await dbManager.getDb(dbName);
+      const col = by === 'ts' ? 'CAST(productLastUpdated AS INTEGER)' : 'productId';
+      const sql = `SELECT * FROM PRODUCTS WHERE ${col} > ? ORDER BY ${col} ASC LIMIT ?`;
+      const rows = await new Promise((resolve, reject) => {
+        db.all(sql, [after, limit], (e, r) => e ? reject(e) : resolve(r || []));
+      });
+      rows.forEach(r => r.dbName = dbName);   // so the plugin knows the source DB
+      all = all.concat(rows);
+    }
+
+    const key = by === 'ts' ? (r => parseInt(r.productLastUpdated) || 0) : (r => r.productId);
+    all.sort((a, b) => key(a) - key(b));
+    all = all.slice(0, limit);
+
+    res.json({ by, after, count: all.length, results: all });
+  } catch (e) {
+    console.error('sync-feed error', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 /**
  * Endpoint: /product/firstdata
