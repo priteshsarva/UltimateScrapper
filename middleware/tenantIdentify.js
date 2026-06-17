@@ -19,6 +19,8 @@ export const tenantIdentify = (req, res, next) => {
         selectedConfig = CLIENT_CONFIGS["timekeepers.in"];
     } else if (clientOrigin.includes("theaquawatch")) {
         selectedConfig = CLIENT_CONFIGS["theaquawatch.com"];
+    }else if (clientOrigin.includes("stylenova")) {
+        selectedConfig = CLIENT_CONFIGS["stylenova.co.in"];
     } else {
         // DEFAULT: Fallback if no match is found (useful for local development)
         selectedConfig = CLIENT_CONFIGS["theaquawatch.com"];
