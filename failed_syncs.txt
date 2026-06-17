@@ -244,3 +244,5 @@
 6/16/2026, 8:18:48 PM | ProductID: 39842 | Site: stylenova | URL: https://uzer-watch.cartpe.in/rolex-date-just-uzer-watch7175.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/16/2026, 8:21:34 PM | ProductID: 57783 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765781699178138 | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/16/2026, 11:08:40 PM | ProductID: 28531 | Site: stylenova | URL: https://awwaltime11.cartpe.in/casio-g-shock-x-red-310-278503543-awwaltime11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/17/2026, 3:54:09 AM | ProductID: 56112 | Site: stylenova | URL: https://uzer-watch.cartpe.in/omega-speedmaster-uzer-watch2446.html?color= | Error: WooCommerce Error: The product with SKU (56112) you are trying to insert is already present in the lookup table
+6/17/2026, 3:55:16 AM | ProductID: 56126 | Site: stylenova | URL: https://uzer-watch.cartpe.in/omega-seamster-uzer-watch5363.html?color= | Error: WooCommerce Error: The product with SKU (56126) you are trying to insert is already present in the lookup table
