@@ -13,7 +13,7 @@ import { humanizePage, humanType } from '../humanize.js';
 import { log } from 'console';
 import { upsertProductSafe, syncProductToAllSites } from '../wpBulkSafeSync.js'
 import { updateProductCategory } from '../../services/updateProductCategoryAndBrand.js';
-
+import { viewMore } from './viewMoreA.js';
 // const baseUrls = ['https://oneshoess.cartpe.in', 'https://reseller-store.cartpe.in'];
 // const baseUrls = ['https://oneshoess.cartpe.in'];
 
@@ -716,53 +716,53 @@ async function updateProduct(product, DB) {
 // }
 
 
-async function viewMore(page, productCount) {
-    // Math logic from your old code to set a hard limit on clicks
-    const count = Math.ceil(productCount / 12);
-    const viewMoreButtonSelector = '#loadmore_btn_category_product';
+// async function viewMore(page, productCount) {
+//     // Math logic from your old code to set a hard limit on clicks
+//     const count = Math.ceil(productCount / 12);
+//     const viewMoreButtonSelector = '#loadmore_btn_category_product';
 
-    console.log(`🔄 Starting to load products. Max clicks needed: ${count}. Monitoring for 'Sold Out'...`);
+//     console.log(`🔄 Starting to load products. Max clicks needed: ${count}. Monitoring for 'Sold Out'...`);
 
-    for (let i = 0; i < count; i++) {
-        try {
-            // 1. SMART-STOPPING: Check if ANY product on the screen says "Sold Out"
-            const foundSoldOut = await page.evaluate(() => {
-                const buttons = Array.from(document.querySelectorAll('#product_list_div button'));
-                return buttons.some(btn => btn.innerText.trim().toLowerCase().includes('sold out'));
-            });
+//     for (let i = 0; i < count; i++) {
+//         try {
+//             // 1. SMART-STOPPING: Check if ANY product on the screen says "Sold Out"
+//             const foundSoldOut = await page.evaluate(() => {
+//                 const buttons = Array.from(document.querySelectorAll('#product_list_div button'));
+//                 return buttons.some(btn => btn.innerText.trim().toLowerCase().includes('sold out'));
+//             });
 
-            if (foundSoldOut) {
-                console.log(`🛑 "Sold Out" product detected! Stopping 'View More' clicks early to save time.`);
-                break; // Instantly exits the for-loop and moves on to scraping!
-            }
+//             if (foundSoldOut) {
+//                 console.log(`🛑 "Sold Out" product detected! Stopping 'View More' clicks early to save time.`);
+//                 break; // Instantly exits the for-loop and moves on to scraping!
+//             }
 
-            // 2. Wait for the button and click it safely
-            await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
+//             // 2. Wait for the button and click it safely
+//             await page.waitForSelector(viewMoreButtonSelector, { timeout: 10000 });
 
-            const buttonClicked = await page.evaluate((selector) => {
-                const btn = document.querySelector(selector);
-                if (btn && btn.offsetParent !== null && !btn.disabled && btn.style.display !== 'none') {
-                    btn.click();
-                    return true;
-                }
-                return false;
-            }, viewMoreButtonSelector);
+//             const buttonClicked = await page.evaluate((selector) => {
+//                 const btn = document.querySelector(selector);
+//                 if (btn && btn.offsetParent !== null && !btn.disabled && btn.style.display !== 'none') {
+//                     btn.click();
+//                     return true;
+//                 }
+//                 return false;
+//             }, viewMoreButtonSelector);
 
-            if (buttonClicked) {
-                console.log(`👉 "Load More" button clicked = ${i + 1} / ${count}`);
-                await delay(4000); // Wait for the new products to render
-            } else {
-                console.log(`✅ "Load More" button disappeared or is unclickable.`);
-                break; // Exit loop if button is broken/hidden
-            }
+//             if (buttonClicked) {
+//                 console.log(`👉 "Load More" button clicked = ${i + 1} / ${count}`);
+//                 await delay(1500); // Wait for the new products to render
+//             } else {
+//                 console.log(`✅ "Load More" button disappeared or is unclickable.`);
+//                 break; // Exit loop if button is broken/hidden
+//             }
 
-        } catch (error) {
-            // If waitForSelector times out, it means the button is completely gone from the HTML
-            console.log(`✅ "Load More" button no longer found. Reached the end of the list.`);
-            break;
-        }
-    }
-}
+//         } catch (error) {
+//             // If waitForSelector times out, it means the button is completely gone from the HTML
+//             console.log(`✅ "Load More" button no longer found. Reached the end of the list.`);
+//             break;
+//         }
+//     }
+// }
 
 async function scrapeImages(page, url, DB) {
 
