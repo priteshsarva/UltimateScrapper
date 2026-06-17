@@ -238,16 +238,6 @@
 6/16/2026, 5:26:00 PM | ProductID: 36544 | Site: stylenova | URL: https://watchhouse11.cartpe.in/casio-g-shock-gm700-381469209-watchhouse11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/16/2026, 5:28:08 PM | ProductID: 22754 | Site: stylenova | URL: https://eye-care.cartpe.in/fossi-l-watch-327840479-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/16/2026, 5:30:10 PM | ProductID: 22812 | Site: stylenova | URL: https://eye-care.cartpe.in/luminor-panerai-watch-327840412-eye-care.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
-<<<<<<< HEAD
-6/16/2026, 5:42:03 PM | ProductID: 67516 | Site: stylenova | URL: https://watchhouse11.cartpe.in/orien-t-kamasu-mako-ra-aa0004e-automatic-silver-black-npi565876472-watchhouse11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
-6/16/2026, 7:27:07 PM | ProductID: 49615 | Site: stylenova | URL: https://jilaniwatches11.cartpe.in/fossi-l-bronson-fs5853-456282318-jilaniwatches11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
-6/16/2026, 8:14:39 PM | ProductID: 52771 | Site: stylenova | URL: https://jilaniwatches11.cartpe.in/casio-g-shock-gbd-200sm-j1498-469918197-jilaniwatches11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
-6/16/2026, 8:18:48 PM | ProductID: 39842 | Site: stylenova | URL: https://uzer-watch.cartpe.in/rolex-date-just-uzer-watch7175.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
-6/16/2026, 8:21:34 PM | ProductID: 57783 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765781699178138 | Error: WooCommerce Error: Invalid or duplicated SKU.
-6/16/2026, 11:08:40 PM | ProductID: 28531 | Site: stylenova | URL: https://awwaltime11.cartpe.in/casio-g-shock-x-red-310-278503543-awwaltime11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
-6/17/2026, 3:54:09 AM | ProductID: 56112 | Site: stylenova | URL: https://uzer-watch.cartpe.in/omega-speedmaster-uzer-watch2446.html?color= | Error: WooCommerce Error: The product with SKU (56112) you are trying to insert is already present in the lookup table
-6/17/2026, 3:55:16 AM | ProductID: 56126 | Site: stylenova | URL: https://uzer-watch.cartpe.in/omega-seamster-uzer-watch5363.html?color= | Error: WooCommerce Error: The product with SKU (56126) you are trying to insert is already present in the lookup table
-=======
 17/6/2026, 7:03:26 am | ProductID: 49398 | Site: stylenova | URL: https://awwaltime11.cartpe.in/emporio-armani-women-twotone-pink-round-dial-347-455006445-awwaltime11.html?color= | Error: WooCommerce Error: The product with SKU (49398) you are trying to insert is already present in the lookup table
 17/6/2026, 10:54:38 am | ProductID: 24962 | Site: stylenova | URL: https://watchfactorys.cartpe.in/2025-omega-seamaster-diver-300m-olive-green-watchfactorys.html?color= | Error: WooCommerce Error: The product with SKU (24962) you are trying to insert is already present in the lookup table
 17/6/2026, 11:01:06 am | ProductID: 25241 | Site: stylenova | URL: https://watchfactorys.cartpe.in/quartz-tissot-prx-solid-mint-green-dial-watchfactorys.html?color= | Error: WooCommerce Error: The product with SKU (25241) you are trying to insert is already present in the lookup table
@@ -422,4 +412,4 @@
 17/6/2026, 10:59:38 pm | ProductID: 47531 | Site: TimesKeepers | URL: https://watch-aqua.cartpe.in/daniel-wellington-petite-ladies-450833078-watch-aqua.html?color= | Error: Network/Fetch Error: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
 17/6/2026, 10:59:48 pm | ProductID: 47532 | Site: TimesKeepers | URL: https://watch-aqua.cartpe.in/daniel-wellington-petite-ladies-450833077-watch-aqua.html?color= | Error: Network/Fetch Error: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
 17/6/2026, 10:59:57 pm | ProductID: 47533 | Site: TimesKeepers | URL: https://watch-aqua.cartpe.in/daniel-wellington-petite-ladies-450833076-watch-aqua.html?color= | Error: Network/Fetch Error: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
->>>>>>> b346b5c20be81f8663efa12846c2661fb7df169d
+18/6/2026, 1:05:45 am | ProductID: 67811 | Site: TimesKeepers | URL: https://spwatches.cartpe.in/seiko-king-silver-green-npi566355280-spwatches.html?color= | Error: Network/Fetch Error: request to https://timeskeepers.in/wp-json/wc/v3/products failed, reason: 
