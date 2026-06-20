@@ -27,7 +27,7 @@ export const SITES_REGISTRY = [
     { id: "saenterprise", name: "SA Enterprise", base_url: "https://saenterprise.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "saenterprise" },
     { id: "thetimekeepers", name: "The Timekeepers", base_url: "https://thetimekeepers.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "thetimekeepers" },
     { id: "watchcode1", name: "Watch Code 1", base_url: "https://watchcode1.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "watchcode1" },
-    { id: "uzer-watch", name: "Uzer Watch", base_url: "https://uzer-watch.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "uzer-watch" },
+    { id: "uzerwatch", name: "Uzer Watch", base_url: "https://uzerwatch.cartpe.in", category: "watches", method: "METHOD_A", searchKey: "uzerwatch" },
     { id: "utstorewatch", name: "UT Store Watch", base_url: "https://utstorewatch.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "utstorewatch" },
     { id: "watch-aqua", name: "Watch Aqua", base_url: "https://watch-aqua.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "watch-aqua" },
     { id: "watch-adda", name: "Watch Adda", base_url: "https://watch-adda.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "watch-adda" },
@@ -37,6 +37,8 @@ export const SITES_REGISTRY = [
     { id: "city-watch19", name: "City Watch 19", base_url: "https://city-watch19.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "city-watch19" },
     { id: "timezone17", name: "Timezone 17", base_url: "https://timezone17.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "timezone17" },
     { id: "watchflex", name: "Watch Flex", base_url: "https://watchflex.cartpe.in/", category: "watches", method: "METHOD_A", searchKey: "watchflex" },
+    
+    
 
     // // ================= SHOES SITES (52) =================
     { id: "classyshoesreseller", name: "Classy Shoes Reseller", base_url: "https://classyshoesreseller.cartpe.in/", category: "shoes", method: "METHOD_A", searchKey: "classyshoesreseller" },
