@@ -4214,3 +4214,36 @@
 6/20/2026, 3:33:35 PM | ProductID: 60105 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1777036809349996 | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/20/2026, 3:40:36 PM | ProductID: 62757 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765781699671788 | Error: WooCommerce Error: Invalid or duplicated SKU.
 6/20/2026, 3:46:14 PM | ProductID: 62763 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765781699659548 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 6:08:44 PM | ProductID: 11475 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/fend-i-ladies-wid-og-dust-og-box-fix-mangoenterprise1155.html?color= | Error: WooCommerce Error: The product with SKU (11475) you are trying to insert is already present in the lookup table
+6/20/2026, 6:10:47 PM | ProductID: 57969 | Site: stylenova | URL: https://timepiece.jdwebnship.com/products/SKU1765262409977454 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 6:11:59 PM | ProductID: 11483 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/gucc-i-black-canary-slippers-for-women-fix-mangoenterprise111002.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 6:14:52 PM | ProductID: 11488 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/croc-s-360-lite-ride-ladies-mangoenterprise118651.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 6:16:21 PM | ProductID: 11530 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/croc-s-bembury-coffee-mangoenterprise11.html?color= | Error: WooCommerce Error: The product with SKU (11530) you are trying to insert is already present in the lookup table
+6/20/2026, 6:24:33 PM | ProductID: 55857 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/croc-s-literide-echo-clogs-mangoenterprise11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 6:32:41 PM | ProductID: 27862 | Site: stylenova | URL: https://mangoenterprise11.cartpe.in/skecher-s-hyper-burst-soft-adjust-premium-black-flip-flop-mangoenterprise11.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 8:15:59 PM | ProductID: 65891 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1780392250344097 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 8:21:13 PM | ProductID: 61802 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU177848950532151 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 8:30:16 PM | ProductID: 58207 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1770914849277744 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 8:38:22 PM | ProductID: 67866 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1781515842774096 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 8:38:31 PM | ProductID: 67548 | Site: stylenova | URL: https://watchclub.cartpe.in/seiko-gmt-quartz-094-npi565560026-watchclub.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 8:43:49 PM | ProductID: 58593 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1774814384297447 | Error: WooCommerce Error: The product with SKU (58593) you are trying to insert is already present in the lookup table
+6/20/2026, 8:52:01 PM | ProductID: 58272 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1773942357559653 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:01:26 PM | ProductID: 58501 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1775726374240488 | Error: WooCommerce Error: The product with SKU (58501) you are trying to insert is already present in the lookup table
+6/20/2026, 9:13:44 PM | ProductID: 65901 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1780485018934107 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:14:33 PM | ProductID: 65424 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1779720172416149 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:25:52 PM | ProductID: 60145 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1776870175238318 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:26:49 PM | ProductID: 58502 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1775829113572005 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:41:26 PM | ProductID: 61999 | Site: stylenova | URL: https://ticktock.jdwebnship.com/products/SKU1778664509331737 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:51:59 PM | ProductID: 57609 | Site: stylenova | URL: https://kdenterprise.jdwebnship.com/products/SKU1771328166826948 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 9:54:18 PM | ProductID: 57640 | Site: stylenova | URL: https://kdenterprise.jdwebnship.com/products/SKU1766058037196245 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 10:11:52 PM | ProductID: 67461 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1781466555896218 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 10:19:25 PM | ProductID: 65328 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1779701243707647 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 10:24:52 PM | ProductID: 61420 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1777720660366263 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 10:32:19 PM | ProductID: 57709 | Site: TimesKeepers | URL: https://watchflex.jdwebnship.com/products/SKU1774626820419503 | Error: Network/Fetch Error: Cannot read properties of null (reading 'replace')
+6/20/2026, 10:32:24 PM | ProductID: 57709 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1774626820419503 | Error: Network/Fetch Error: Cannot read properties of null (reading 'replace')
+6/20/2026, 10:41:17 PM | ProductID: 57786 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765781699317556 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 10:42:25 PM | ProductID: 57799 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765960017806911 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 10:48:16 PM | ProductID: 60106 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU177703679233834 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 11:02:11 PM | ProductID: 63919 | Site: stylenova | URL: https://watchflex.jdwebnship.com/products/SKU1765781839338210 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 11:10:50 PM | ProductID: 57837 | Site: stylenova | URL: https://watch-street.jdwebnship.com/products/SKU1769523010216017 | Error: WooCommerce Error: Invalid or duplicated SKU.
+6/20/2026, 11:13:23 PM | ProductID: 58512 | Site: stylenova | URL: https://watch-street.jdwebnship.com/products/SKU1775826565289162 | Error: WooCommerce Error: The product with SKU (58512) you are trying to insert is already present in the lookup table
