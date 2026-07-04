@@ -14264,3 +14264,16 @@
 7/4/2026, 7:33:58 AM | ProductID: 8770 | Site: stylenova | URL: https://city-watch19.cartpe.in/gshock-ga2100-city-watch19.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 7/4/2026, 7:39:05 AM | ProductID: 70290 | Site: stylenova | URL: https://city-watch19.cartpe.in/richard-mille-city-watch199545.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
 7/4/2026, 7:40:13 AM | ProductID: 70297 | Site: stylenova | URL: https://city-watch19.cartpe.in/armani-exchange-automatic-ax2418-city-watch19.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:41:09 AM | ProductID: 67844 | Site: stylenova | URL: https://city-watch19.cartpe.in/rolex-oyster-perpetual-day-date-diamond-gold-green-40-battery-city-watch19.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:42:26 AM | ProductID: 69279 | Site: stylenova | URL: https://city-watch19.cartpe.in/diesel-3-bar-big-daddy-city-watch195481.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:42:34 AM | ProductID: 8638 | Site: stylenova | URL: https://city-watch19.cartpe.in/michael-kors-parker-city-watch199893.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:51:24 AM | ProductID: 69951 | Site: stylenova | URL: https://city-watch19.cartpe.in/rolex-celline-city-watch195691.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:51:54 AM | ProductID: 67317 | Site: stylenova | URL: https://city-watch19.cartpe.in/gucci-interlocking-g-city-watch197653.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:52:19 AM | ProductID: 67319 | Site: stylenova | URL: https://city-watch19.cartpe.in/gucci-interlocking-g-city-watch196428.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:53:08 AM | ProductID: 66645 | Site: stylenova | URL: https://city-watch19.cartpe.in/fossil-jacqueline-city-watch196041.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:54:06 AM | ProductID: 61407 | Site: stylenova | URL: https://city-watch19.cartpe.in/mont-blanc-chronograph-city-watch19.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 7:56:39 AM | ProductID: 58752 | Site: stylenova | URL: https://city-watch19.cartpe.in/swaroski-crystal-lake-city-watch199467.html?color= | Error: WooCommerce Error: The product with SKU (58752) you are trying to insert is already present in the lookup table
+7/4/2026, 8:00:36 AM | ProductID: 54708 | Site: stylenova | URL: https://city-watch19.cartpe.in/tommy-hilfiger-automatic-city-watch199950.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 8:00:58 AM | ProductID: 40959 | Site: stylenova | URL: https://city-watch19.cartpe.in/rolex-date-just-for-her-black-dial-city-watch194052.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 8:01:56 AM | ProductID: 40762 | Site: stylenova | URL: https://city-watch19.cartpe.in/rolex-cellini-for-her-city-watch19.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
+7/4/2026, 8:03:33 AM | ProductID: 52627 | Site: stylenova | URL: https://city-watch19.cartpe.in/tissot-chemin-skeleton-city-watch199393.html?color= | Error: WooCommerce Error: Invalid or duplicated SKU.
