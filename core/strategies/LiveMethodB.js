@@ -14,7 +14,7 @@ export async function scrapeSingleProductMethodB(productUrl, dbName) {
 
     try {
         browser = await puppeteer.launch({
-            headless: "new", // 'new' uses less RAM than the old 'true' architecture
+            headless: false, // 'new' uses less RAM than the old 'true' architecture
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
             defaultViewport: { width: 800, height: 600 },
             args: [
